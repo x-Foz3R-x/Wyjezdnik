@@ -3,12 +3,13 @@
 import { useActionState, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, ChevronRight, Luggage } from "lucide-react";
+import { ArrowLeft, ChevronRight, Download, Luggage } from "lucide-react";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { joinTripByPinAction, type TripFormState } from "~/app/actions/trips";
 import { Button } from "~/components/ui/button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "~/components/ui/input-otp";
 import { getSavedTrips, type SavedTrip } from "~/lib/saved-trips";
+import { usePwaInstall } from "~/components/pwa/pwa-provider";
 
 interface StartScreenProps {
   initialError?: string | null;
@@ -25,6 +26,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 const INITIAL_TRIP_FORM_STATE: TripFormState = { error: null };
 
 export function StartScreen({ initialError, returnTo }: StartScreenProps) {
+  const { showInstallAction, requestInstall } = usePwaInstall();
   const [tripPin, setTripPin] = useState("");
   const [savedTrips, setSavedTrips] = useState<SavedTrip[]>([]);
   const [state, formAction, isPending] = useActionState(
@@ -97,6 +99,16 @@ export function StartScreen({ initialError, returnTo }: StartScreenProps) {
         >
           Stwórz nowy wyjazd
         </Link>
+
+        {showInstallAction && (
+          <button
+            type="button"
+            onClick={() => void requestInstall()}
+            className="border-theme-border text-theme-text bg-theme-card/70 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border px-4 text-xs font-bold"
+          >
+            <Download className="text-theme-primary" size={17} /> Zainstaluj aplikację
+          </button>
+        )}
 
         {savedTrips.length > 0 && (
           <section className="flex w-full flex-col gap-3 pt-2 text-left">

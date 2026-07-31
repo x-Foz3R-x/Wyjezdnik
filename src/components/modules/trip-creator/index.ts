@@ -1,5 +1,6 @@
 import { type DashboardWidgetKey, type TripModules } from "~/lib/trip-config";
 import type { PackingPresetKey } from "~/lib/packing";
+import type { CurrencyCode } from "~/lib/currencies";
 
 export type TripFormData = {
   name: string;
@@ -7,6 +8,7 @@ export type TripFormData = {
   destinationName: string;
   destinationAddress: string;
   destinationMapUrl: string;
+  defaultCurrency: CurrencyCode;
   playlistUrl: string;
   modules: TripModules;
   dashboardWidgets: DashboardWidgetKey[];

@@ -3,14 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "build": "next build",
-    "check": "next lint && tsc --noEmit",
+    "check": "eslint . && tsc --noEmit",
     "dev": "next dev --turbo",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
-    "lint": "next lint",
-    "lint:fix": "next lint --fix",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "preview": "next build && next start",
     "start": "next start",
     "typecheck": "tsc --noEmit"
@@ -24,7 +27,7 @@
     "framer-motion": "^12.42.2",
     "input-otp": "^1.4.2",
     "lucide-react": "^1.23.0",
-    "next": "^16.2.10",
+    "next": "^16.2.12",
     "radix-ui": "^1.6.2",
     "react": "^19.2.7",
     "react-day-picker": "^10.0.1",
@@ -42,14 +45,18 @@
     "@types/node": "^20.14.10",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "eslint": "^10.6.0",
-    "eslint-config-next": "^16.2.10",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.12",
     "postcss": "^8.5.3",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "tailwindcss": "^4.0.15",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.1"
+  },
+  "overrides": {
+    "postcss": "$postcss",
+    "sharp": "0.35.3"
   },
   "ct3aMetadata": {
     "initVersion": "7.40.0"

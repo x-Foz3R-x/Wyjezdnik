@@ -11,6 +11,7 @@ import {
   Backpack,
   CalendarDays,
   Check,
+  ChevronDown,
   ChevronRight,
   CircleDollarSign,
   Copy,
@@ -74,9 +75,12 @@ import {
 } from "~/lib/trip-config";
 import { cn } from "~/lib/utils";
 import { PACKING_PRESETS, type PackingPresetKey } from "~/lib/packing";
+import { CURRENCIES, type CurrencyCode } from "~/lib/currencies";
+import type { ExpenseVisibility } from "~/lib/expense-visibility";
 import { runClientAction } from "~/lib/client-action";
 import { announceNavigationStart } from "~/lib/navigation-feedback";
 import { forgetSavedTrip } from "~/lib/saved-trips";
+import { LocalProfileSettings } from "~/components/profile/local-profile-settings";
 
 type SettingsView =
   | "menu"
@@ -111,8 +115,11 @@ type TripSettingsState = {
   destinationAddress: string;
   destinationMapUrl: string;
   playlistUrl: string;
+  defaultCurrency: CurrencyCode;
   financeMode: FinanceMode;
   settlementStrategy: SettlementStrategy;
+  expenseVisibility: ExpenseVisibility;
+  expenseViewerIds: string[];
   modules: TripModules;
   dashboardWidgets: GameplayDashboardWidgetKey[];
   navigation: TripNavigationKey[];
@@ -188,7 +195,13 @@ export function TripSettings({
   tripKey: string;
   isAdmin: boolean;
   currentUserId: string;
-  initialProfile: { name: string; avatarUrl: string | null };
+  initialProfile: {
+    name: string;
+    avatarUrl: string | null;
+    phone: string | null;
+    revolutUrl: string | null;
+    paymentNote: string | null;
+  };
   initialTrip: {
     name: string;
     startDate: string | null;
@@ -197,8 +210,11 @@ export function TripSettings({
     destinationAddress: string | null;
     destinationMapUrl: string | null;
     playlistUrl: string | null;
+    defaultCurrency: CurrencyCode;
     financeMode: FinanceMode;
     settlementStrategy: SettlementStrategy;
+    expenseVisibility: ExpenseVisibility;
+    expenseViewerIds: string[];
     playlists: Array<{ id: string; name: string; url: string }>;
     modules: TripModules;
     dashboardWidgets: GameplayDashboardWidgetKey[];
@@ -222,10 +238,16 @@ export function TripSettings({
     : "menu";
   const permittedView = !isAdmin && !["menu", "profile"].includes(parsedView) ? "menu" : parsedView;
   const view =
-    initialTrip.status === "closed" && permittedView !== "lifecycle" ? "menu" : permittedView;
+    initialTrip.status === "closed" && !["profile", "lifecycle"].includes(permittedView)
+      ? "menu"
+      : permittedView;
   const [profile, setProfile] = useState({
     name: initialProfile.name,
     avatarUrl: initialProfile.avatarUrl ?? "",
+    phone: initialProfile.phone ?? "",
+    revolutUrl: initialProfile.revolutUrl ?? "",
+    paymentNote: initialProfile.paymentNote ?? "",
+    newPin: "",
   });
   const [form, setForm] = useState<TripSettingsState>({
     name: initialTrip.name,
@@ -235,8 +257,11 @@ export function TripSettings({
     destinationAddress: initialTrip.destinationAddress ?? "",
     destinationMapUrl: initialTrip.destinationMapUrl ?? "",
     playlistUrl: initialTrip.playlistUrl ?? "",
+    defaultCurrency: initialTrip.defaultCurrency,
     financeMode: initialTrip.financeMode,
     settlementStrategy: initialTrip.settlementStrategy,
+    expenseVisibility: initialTrip.expenseVisibility,
+    expenseViewerIds: initialTrip.expenseViewerIds,
     modules: initialTrip.modules,
     dashboardWidgets: initialTrip.dashboardWidgets,
     navigation: initialTrip.navigation,
@@ -332,7 +357,7 @@ export function TripSettings({
       if (isEnabled && current.dashboardWidgets.length === 1) {
         setFeedback({
           type: "error",
-          text: "Rozgrywka potrzebuje przynajmniej jednego aktywnego elementu.",
+          text: "Rozrywka potrzebuje przynajmniej jednego aktywnego elementu.",
         });
         return current;
       }
@@ -367,8 +392,11 @@ export function TripSettings({
           destinationAddress: nullable(form.destinationAddress),
           destinationMapUrl: nullable(form.destinationMapUrl),
           playlistUrl: nullable(form.playlistUrl),
+          defaultCurrency: form.defaultCurrency,
           financeMode: form.financeMode,
           settlementStrategy: form.settlementStrategy,
+          expenseVisibility: form.expenseVisibility,
+          expenseViewerIds: form.expenseViewerIds,
           modules: form.modules,
           dashboardWidgets: form.dashboardWidgets,
           navigation: navigationOrder,
@@ -395,6 +423,10 @@ export function TripSettings({
           tripKey,
           name: profile.name,
           avatarUrl: nullable(profile.avatarUrl),
+          phone: nullable(profile.phone),
+          revolutUrl: nullable(profile.revolutUrl),
+          paymentNote: nullable(profile.paymentNote),
+          newPin: nullable(profile.newPin),
         }),
       "Nie udało się zapisać profilu.",
     );
@@ -513,73 +545,82 @@ export function TripSettings({
             <div>
               <p className="text-theme-text text-sm font-bold">Wyjazd jest zamknięty</p>
               <p className="text-theme-muted mt-1 text-xs leading-relaxed">
-                Dane pozostały na miejscu, ale cała ekipa ma teraz dostęp tylko do historii.
+                Nie można dopisywać wydatków ani zmieniać planu. Profil oraz zgłaszanie i
+                potwierdzanie zwrotów pozostają dostępne.
               </p>
             </div>
           </div>
         )}
 
-        {(initialTrip.status !== "closed" || isAdmin) && (
-          <SettingsMenu>
-            {initialTrip.status !== "closed" && (
+        <SettingsSectionLabel>Najczęściej używane</SettingsSectionLabel>
+        <SettingsMenu>
+          <SettingsMenuItem
+            icon={UserRound}
+            title="Mój profil"
+            description="Nazwa, PIN i dane do przelewu"
+            onClick={() => openView("profile")}
+          />
+          {isAdmin && initialTrip.status !== "closed" && (
+            <>
               <SettingsMenuItem
-                icon={UserRound}
-                title="Mój profil"
-                description="Nazwa i avatar widoczne dla ekipy"
-                onClick={() => openView("profile")}
+                icon={Settings2}
+                title="Informacje o wyjeździe"
+                description="Nazwa, termin i miejsce docelowe"
+                onClick={() => openView("details")}
+              />
+              {form.modules.finances && (
+                <SettingsMenuItem
+                  icon={ReceiptText}
+                  title="Rozliczenia"
+                  description={`${getFinanceModeLabel(form.financeMode)} · ${getSettlementStrategyLabel(form.settlementStrategy)}`}
+                  onClick={() => openView("finances")}
+                />
+              )}
+              <SettingsMenuItem
+                icon={UsersRound}
+                title="Uczestnicy"
+                description="Profile, role, aktywność i PIN-y"
+                onClick={() => openView("participants")}
+              />
+            </>
+          )}
+        </SettingsMenu>
+
+        {isAdmin && initialTrip.status !== "closed" && (
+          <SettingsAdvancedMenu>
+            <SettingsMenuItem
+              icon={Sparkles}
+              title="Moduły i nawigacja"
+              description="Funkcje wyjazdu i kolejność dolnego paska"
+              onClick={() => openView("modules")}
+            />
+            {form.modules.scoreboard && (
+              <SettingsMenuItem
+                icon={LayoutGrid}
+                title="Elementy Rozrywki"
+                description="Punktacja, wyzwania, głosowania i koło"
+                onClick={() => openView("widgets")}
               />
             )}
-            {isAdmin && initialTrip.status !== "closed" && (
-              <>
-                <SettingsMenuItem
-                  icon={Settings2}
-                  title="Informacje o wyjeździe"
-                  description="Nazwa, termin i miejsce docelowe"
-                  onClick={() => openView("details")}
-                />
-                <SettingsMenuItem
-                  icon={Sparkles}
-                  title="Moduły i nawigacja"
-                  description="Funkcje wyjazdu i kolejność dolnego paska"
-                  onClick={() => openView("modules")}
-                />
-                {form.modules.scoreboard && (
-                  <SettingsMenuItem
-                    icon={LayoutGrid}
-                    title="Elementy Rozgrywki"
-                    description="Punktacja, wyzwania, głosowania i koło"
-                    onClick={() => openView("widgets")}
-                  />
-                )}
-                {form.modules.finances && (
-                  <SettingsMenuItem
-                    icon={ReceiptText}
-                    title="Rozliczenia"
-                    description={`${getFinanceModeLabel(form.financeMode)} · ${getSettlementStrategyLabel(form.settlementStrategy)}`}
-                    onClick={() => openView("finances")}
-                  />
-                )}
-                <SettingsMenuItem
-                  icon={Music2}
-                  title="Playlisty"
-                  description="Soundtracki dostępne dla całej ekipy"
-                  onClick={() => openView("playlists")}
-                />
-                <SettingsMenuItem
-                  icon={PackageCheck}
-                  title="Pakowanie"
-                  description="Gotowe zestawy rzeczy dla uczestników"
-                  onClick={() => openView("packing")}
-                />
-                <SettingsMenuItem
-                  icon={UsersRound}
-                  title="Uczestnicy i drużyny"
-                  description="Profile, składy, aktywność i PIN-y"
-                  onClick={() => openView("participants")}
-                />
-              </>
-            )}
-            {isAdmin && (
+            <SettingsMenuItem
+              icon={Music2}
+              title="Playlisty"
+              description="Soundtracki dostępne dla całej ekipy"
+              onClick={() => openView("playlists")}
+            />
+            <SettingsMenuItem
+              icon={PackageCheck}
+              title="Pakowanie"
+              description="Gotowe zestawy rzeczy dla uczestników"
+              onClick={() => openView("packing")}
+            />
+          </SettingsAdvancedMenu>
+        )}
+
+        {isAdmin && (
+          <>
+            <SettingsSectionLabel>Zarządzanie wyjazdem</SettingsSectionLabel>
+            <SettingsMenu>
               <SettingsMenuItem
                 icon={initialTrip.status === "closed" ? RotateCcw : LockKeyhole}
                 title={initialTrip.status === "closed" ? "Otwórz wyjazd" : "Zakończ wyjazd"}
@@ -590,8 +631,8 @@ export function TripSettings({
                 }
                 onClick={() => openView("lifecycle")}
               />
-            )}
-          </SettingsMenu>
+            </SettingsMenu>
+          </>
         )}
       </SettingsPage>
     );
@@ -622,6 +663,30 @@ export function TripSettings({
             value={profile.name}
             onChange={(event) => setProfile({ ...profile, name: event.target.value })}
           />
+        </SettingsCard>
+        <LocalProfileSettings
+          currentProfile={{
+            name: profile.name,
+            avatarUrl: profile.avatarUrl,
+            phone: profile.phone,
+            revolutUrl: profile.revolutUrl,
+            paymentNote: profile.paymentNote,
+          }}
+          onApply={(local) =>
+            setProfile((current) => ({
+              ...current,
+              ...local,
+            }))
+          }
+        />
+        <SettingsDisclosure
+          title="Dane profilu i płatności"
+          description="Avatar, telefon, BLIK, Revolut i inne formy zwrotu"
+          icon={CircleDollarSign}
+          defaultOpen={Boolean(
+            profile.avatarUrl || profile.phone || profile.revolutUrl || profile.paymentNote,
+          )}
+        >
           <Input
             type="url"
             label="Link do avatara"
@@ -629,10 +694,56 @@ export function TripSettings({
             onChange={(event) => setProfile({ ...profile, avatarUrl: event.target.value })}
             placeholder="https://..."
           />
+          <Input
+            type="tel"
+            label="Telefon / BLIK"
+            value={profile.phone}
+            onChange={(event) => setProfile({ ...profile, phone: event.target.value })}
+            placeholder="+48 123 456 789"
+          />
+          <Input
+            label="Revolut"
+            value={profile.revolutUrl}
+            onChange={(event) => setProfile({ ...profile, revolutUrl: event.target.value })}
+            placeholder="@nazwa lub link revolut.me"
+          />
+          <label className="flex flex-col gap-1.5">
+            <span className="text-theme-muted text-xs font-medium">
+              Inny sposób zwrotu pieniędzy
+            </span>
+            <textarea
+              value={profile.paymentNote}
+              onChange={(event) => setProfile({ ...profile, paymentNote: event.target.value })}
+              placeholder="np. numer konta albo informacja: najlepiej gotówką"
+              rows={3}
+              maxLength={500}
+              className="bg-theme-card text-theme-text placeholder:text-theme-muted border-theme-border focus:border-theme-primary resize-none rounded-xl border p-3 text-sm outline-hidden"
+            />
+          </label>
           <p className="text-theme-muted text-xs">
-            Zostaw link pusty, aby korzystać z kolorowego avatara z pierwszą literą nazwy.
+            Dane przelewowe zobaczą uczestnicy, którym masz zwrócić pieniądze.
           </p>
-        </SettingsCard>
+        </SettingsDisclosure>
+        <SettingsDisclosure
+          title="Zmiana PIN-u"
+          description="Opcjonalna zmiana 4-cyfrowego PIN-u tego profilu"
+          icon={KeyRound}
+        >
+          <Input
+            type="password"
+            inputMode="numeric"
+            label="Nowy PIN"
+            value={profile.newPin}
+            onChange={(event) =>
+              setProfile({ ...profile, newPin: event.target.value.replace(/\D/g, "").slice(0, 4) })
+            }
+            placeholder="Zostaw puste, aby nie zmieniać"
+            maxLength={4}
+          />
+          <p className="text-theme-muted text-xs">
+            Nowy PIN musi mieć dokładnie 4 cyfry. Zostaw pole puste, aby zachować obecny.
+          </p>
+        </SettingsDisclosure>
         <SaveButton isSaving={isSaving} onClick={() => void saveProfile()} label="Zapisz profil" />
       </SettingsPage>
     );
@@ -724,19 +835,23 @@ export function TripSettings({
           </div>
         </SettingsCard>
 
-        <SettingsCard title="Kolejność nawigacji" icon={LayoutGrid}>
+        <SettingsDisclosure
+          title="Kolejność nawigacji"
+          description="Opcjonalnie ustaw kolejność dolnego paska"
+          icon={LayoutGrid}
+        >
           <p className="text-theme-muted text-xs">
             Pierwsze trzy aktywne moduły trafiają na dolny pasek. Pozostałe są zawsze dostępne w
             „Więcej”.
           </p>
           {navigationOrder.length === 0 ? (
             <p className="border-theme-border text-theme-muted rounded-xl border border-dashed p-4 text-center text-xs">
-              Włącz Zakupy, Rozgrywkę, Rozliczenia lub Harmonogram.
+              Włącz Zakupy, Rozrywkę, Rozliczenia lub Harmonogram.
             </p>
           ) : (
             <div className="border-theme-border divide-theme-border divide-y overflow-hidden rounded-xl border">
               {navigationOrder.map((key, index) => {
-                const module = TRIP_MODULES.find((item) => item.key === key);
+                const tripModule = TRIP_MODULES.find((item) => item.key === key);
                 const Icon = ICONS[key];
                 return (
                   <div key={key} className="flex min-h-16 items-center gap-3 px-3 py-2">
@@ -745,7 +860,7 @@ export function TripSettings({
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="text-theme-text block truncate text-sm font-bold">
-                        {module?.shortName ?? key}
+                        {tripModule?.shortName ?? key}
                       </span>
                       <span className="text-theme-muted block text-[10px]">
                         {index < 3 ? `Pozycja ${index + 1} na pasku` : "Dostępny w Więcej"}
@@ -756,7 +871,7 @@ export function TripSettings({
                       onClick={() => moveNavigation(index, -1)}
                       disabled={index === 0}
                       className="text-theme-muted flex h-10 w-10 items-center justify-center disabled:opacity-25"
-                      aria-label={`Przesuń ${module?.shortName ?? key} wyżej`}
+                      aria-label={`Przesuń ${tripModule?.shortName ?? key} wyżej`}
                     >
                       <ArrowUp size={17} />
                     </button>
@@ -765,7 +880,7 @@ export function TripSettings({
                       onClick={() => moveNavigation(index, 1)}
                       disabled={index === navigationOrder.length - 1}
                       className="text-theme-muted flex h-10 w-10 items-center justify-center disabled:opacity-25"
-                      aria-label={`Przesuń ${module?.shortName ?? key} niżej`}
+                      aria-label={`Przesuń ${tripModule?.shortName ?? key} niżej`}
                     >
                       <ArrowDown size={17} />
                     </button>
@@ -774,7 +889,7 @@ export function TripSettings({
               })}
             </div>
           )}
-        </SettingsCard>
+        </SettingsDisclosure>
         <SaveButton isSaving={isSaving} onClick={() => void saveTrip()} />
       </SettingsPage>
     );
@@ -783,10 +898,10 @@ export function TripSettings({
   if (view === "widgets") {
     return (
       <SettingsPage>
-        <SettingsHeader title="Elementy Rozgrywki" onBack={closeView} />
+        <SettingsHeader title="Elementy Rozrywki" onBack={closeView} />
         <FeedbackBanner feedback={feedback} />
         <p className="text-theme-muted text-sm">
-          Wybierz funkcje dostępne w całej Rozgrywce. Ich skróty pojawią się też automatycznie w
+          Wybierz funkcje dostępne w całej Rozrywce. Ich skróty pojawią się też automatycznie w
           Bazie.
         </p>
         <div className="grid grid-cols-2 gap-2">
@@ -826,6 +941,13 @@ export function TripSettings({
   }
 
   if (view === "finances") {
+    const expenseVisibilityLabel =
+      form.expenseVisibility === "everyone"
+        ? "wszyscy widzą cały wyjazd"
+        : form.expenseVisibility === "selected"
+          ? "wybrane osoby widzą cały wyjazd"
+          : "pełny podgląd tylko dla zarządców";
+
     return (
       <SettingsPage>
         <SettingsHeader title="Rozliczenia" onBack={closeView} />
@@ -842,13 +964,39 @@ export function TripSettings({
           </div>
         )}
 
+        <SettingsCard title="Domyślna waluta" icon={CircleDollarSign}>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-theme-muted text-xs">Podpowiadana przy nowych wydatkach</span>
+            <select
+              value={form.defaultCurrency}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  defaultCurrency: event.target.value as CurrencyCode,
+                })
+              }
+              className="bg-theme-card text-theme-text border-theme-border h-12 rounded-xl border px-3 text-sm"
+            >
+              {CURRENCIES.map((currency) => (
+                <option key={currency.code} value={currency.code}>
+                  {currency.code} · {currency.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="text-theme-muted text-xs leading-relaxed">
+            Zmiana nie przelicza starszych pozycji. Każda waluta ma osobny bilans, dzięki czemu euro
+            i złotówki nigdy nie zostaną przypadkiem zsumowane.
+          </p>
+        </SettingsCard>
+
         <SettingsCard title="Sposób dzielenia rachunków" icon={CircleDollarSign}>
           <FinanceModeOption
             selected={form.financeMode === "whole"}
             disabled={initialTrip.financeEntryCount > 0}
-            title="Pełne złotówki"
+            title="Pełne jednostki"
             badge="Polecane"
-            description="Kwoty i przelewy bez groszy. Każdy ma równy udział, a końcówkę z dzielenia bierze płatnik."
+            description="Rachunek może mieć część dziesiętną, ale udziały pozostałych osób są normalnie zaokrąglane do pełnej jednostki. Reszta zostaje u płatnika."
             onSelect={() => setForm((current) => ({ ...current, financeMode: "whole" }))}
           />
           <FinanceModeOption
@@ -860,23 +1008,98 @@ export function TripSettings({
           />
         </SettingsCard>
 
-        <SettingsCard title="Proponowane przelewy" icon={ArrowUp}>
-          <FinanceModeOption
-            selected={form.settlementStrategy === "relational"}
-            title="Między właściwymi osobami"
-            badge="Domyślnie"
-            description="Każdy oddaje bezpośrednio tym osobom, które rzeczywiście płaciły za jego część."
-            onSelect={() =>
-              setForm((current) => ({ ...current, settlementStrategy: "relational" }))
-            }
-          />
-          <FinanceModeOption
-            selected={form.settlementStrategy === "optimized"}
-            title="Mniej przelewów"
-            description="Aplikacja zachowuje końcowe bilanse, ale skraca łańcuch długów i ogranicza liczbę przelewów."
-            onSelect={() => setForm((current) => ({ ...current, settlementStrategy: "optimized" }))}
-          />
-        </SettingsCard>
+        <SettingsDisclosure
+          title="Więcej opcji rozliczeń"
+          description={`${getSettlementStrategyLabel(form.settlementStrategy)} · ${expenseVisibilityLabel}`}
+          icon={Settings2}
+          defaultOpen={
+            form.settlementStrategy !== "relational" || form.expenseVisibility !== "everyone"
+          }
+        >
+          <SettingsCard title="Proponowane przelewy" icon={ArrowUp}>
+            <FinanceModeOption
+              selected={form.settlementStrategy === "relational"}
+              title="Między właściwymi osobami"
+              badge="Domyślnie"
+              description="Każdy oddaje bezpośrednio tym osobom, które rzeczywiście płaciły za jego część."
+              onSelect={() =>
+                setForm((current) => ({ ...current, settlementStrategy: "relational" }))
+              }
+            />
+            <FinanceModeOption
+              selected={form.settlementStrategy === "optimized"}
+              title="Mniej przelewów"
+              description="Aplikacja zachowuje końcowe bilanse, ale skraca łańcuch długów i ogranicza liczbę przelewów."
+              onSelect={() =>
+                setForm((current) => ({ ...current, settlementStrategy: "optimized" }))
+              }
+            />
+          </SettingsCard>
+
+          <SettingsCard title="Widoczność historii wydatków" icon={Eye}>
+            <p className="text-theme-muted text-xs leading-relaxed">
+              Każdy zawsze widzi rachunki, które go dotyczą. Tutaj ustalasz, kto może dodatkowo
+              przeglądać wszystkie pozycje wyjazdu. Zarządcy mają pełny dostęp niezależnie od
+              wyboru.
+            </p>
+            <FinanceModeOption
+              selected={form.expenseVisibility === "everyone"}
+              title="Wszyscy uczestnicy"
+              description="Każda osoba może przełączyć historię między swoimi rachunkami a całym wyjazdem."
+              onSelect={() => setForm((current) => ({ ...current, expenseVisibility: "everyone" }))}
+            />
+            <FinanceModeOption
+              selected={form.expenseVisibility === "managers"}
+              title="Tylko zarządcy"
+              description="Pozostali uczestnicy zobaczą wyłącznie wydatki i przelewy, które ich dotyczą."
+              onSelect={() => setForm((current) => ({ ...current, expenseVisibility: "managers" }))}
+            />
+            <FinanceModeOption
+              selected={form.expenseVisibility === "selected"}
+              title="Zarządcy i wybrane osoby"
+              description="Nadaj pełny podgląd konkretnym uczestnikom bez robienia z nich zarządców."
+              onSelect={() => setForm((current) => ({ ...current, expenseVisibility: "selected" }))}
+            />
+
+            {form.expenseVisibility === "selected" && (
+              <div className="border-theme-border divide-theme-border divide-y overflow-hidden rounded-xl border">
+                {participants
+                  .filter((participant) => !participant.isAdmin)
+                  .map((participant) => {
+                    const selected = form.expenseViewerIds.includes(participant.id);
+                    return (
+                      <label
+                        key={participant.id}
+                        className="flex min-h-12 cursor-pointer items-center gap-3 px-3 py-2"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() =>
+                            setForm((current) => ({
+                              ...current,
+                              expenseViewerIds: selected
+                                ? current.expenseViewerIds.filter((id) => id !== participant.id)
+                                : [...current.expenseViewerIds, participant.id],
+                            }))
+                          }
+                          className="accent-theme-primary size-4"
+                        />
+                        <span className="text-theme-text text-sm font-semibold">
+                          {participant.name}
+                        </span>
+                      </label>
+                    );
+                  })}
+                {participants.every((participant) => participant.isAdmin) && (
+                  <p className="text-theme-muted px-3 py-4 text-xs">
+                    Nie ma jeszcze uczestników bez roli Zarządcy.
+                  </p>
+                )}
+              </div>
+            )}
+          </SettingsCard>
+        </SettingsDisclosure>
 
         {initialTrip.financeEntryCount > 0 && (
           <p className="text-theme-muted border-theme-border rounded-xl border px-4 py-3 text-xs leading-relaxed">
@@ -963,8 +1186,8 @@ export function TripSettings({
           </p>
           <p className="text-theme-muted text-sm leading-relaxed">
             {isClosed
-              ? "Uczestnicy nadal widzą Bazę, zakupy, rozgrywkę i rozliczenia, ale nie mogą niczego dopisywać, usuwać ani potwierdzać."
-              : "Zamknięcie nie usuwa wyjazdu. Zatrzymuje edycję wszystkich modułów, dzięki czemu po czasie nikt przypadkiem nie zmieni rachunków ani historii."}
+              ? "Uczestnicy nadal widzą całą historię. Nie mogą zmieniać wydatków ani pozostałych modułów, ale mogą uzupełnić profil oraz dokończyć zgłaszanie i potwierdzanie zwrotów."
+              : "Zamknięcie nie usuwa wyjazdu. Zatrzymuje dopisywanie wydatków i edycję pozostałych modułów, ale pozwala ekipie spokojnie dokończyć przelewy."}
           </p>
           {initialTrip.closedAt && (
             <p className="text-theme-muted text-xs">
@@ -987,7 +1210,7 @@ export function TripSettings({
         </SettingsCard>
         <SettingsCard title="Strefa nieodwracalna" icon={Trash2}>
           <p className="text-theme-muted text-sm leading-relaxed">
-            Trwałe usunięcie kasuje uczestników, zakupy, rozgrywkę, harmonogram i wszystkie
+            Trwałe usunięcie kasuje uczestników, zakupy, rozrywkę, harmonogram i wszystkie
             rozliczenia. Tej operacji nie można cofnąć.
           </p>
           <p className="text-theme-muted text-xs">
@@ -1085,7 +1308,7 @@ export function TripSettings({
 
   return (
     <SettingsPage>
-      <SettingsHeader title="Uczestnicy i drużyny" onBack={closeView} />
+      <SettingsHeader title="Uczestnicy" onBack={closeView} />
       <ParticipantManager
         tripKey={tripKey}
         currentUserId={currentUserId}
@@ -1270,7 +1493,7 @@ function TeamManager({
   };
 
   return (
-    <SettingsCard>
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-theme-text text-sm font-bold">Drużyny · {teams.length}</h2>
@@ -1437,7 +1660,7 @@ function TeamManager({
           </Button>
         </div>
       </ResponsiveDialog>
-    </SettingsCard>
+    </div>
   );
 }
 
@@ -1519,15 +1742,15 @@ function ParticipantManager({
   return (
     <div className="flex flex-col gap-5">
       {(teamsEnabled || teams.length > 0) && (
-        <TeamManager tripKey={tripKey} teams={teams} participants={participants} />
-      )}
-      {!teamsEnabled && teams.length === 0 && (
-        <SettingsCard title="Drużyny" icon={UsersRound}>
-          <p className="text-theme-muted text-xs leading-relaxed">
-            Drużyny pojawią się tutaj po włączeniu Punktacji w „Elementach Rozgrywki”. Koło i
-            głosowania nie wymagają podziału ekipy.
-          </p>
-        </SettingsCard>
+        <SettingsDisclosure
+          title={
+            teams.length > 0 ? `Drużyny do punktacji · ${teams.length}` : "Drużyny do punktacji"
+          }
+          description="Opcjonalny podział używany tylko w Rozrywce"
+          icon={Trophy}
+        >
+          <TeamManager tripKey={tripKey} teams={teams} participants={participants} />
+        </SettingsDisclosure>
       )}
 
       <SettingsCard>
@@ -1754,6 +1977,37 @@ function SettingsMenu({ children }: { children: React.ReactNode }) {
   );
 }
 
+function SettingsSectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-theme-muted -mb-2 px-1 text-[10px] font-bold tracking-[0.16em] uppercase">
+      {children}
+    </p>
+  );
+}
+
+function SettingsAdvancedMenu({ children }: { children: React.ReactNode }) {
+  return (
+    <details className="bg-theme-card border-theme-border group overflow-hidden rounded-2xl border">
+      <summary className="hover:bg-theme-primary/5 flex min-h-18 cursor-pointer list-none items-center gap-3 px-4 py-3 transition [&::-webkit-details-marker]:hidden">
+        <span className="bg-theme-primary/10 text-theme-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
+          <Settings2 size={18} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="text-theme-text block text-sm font-bold">Więcej możliwości</span>
+          <span className="text-theme-muted mt-0.5 block text-[11px]">
+            Moduły, układ, Rozrywka, playlisty i pakowanie
+          </span>
+        </span>
+        <ChevronDown
+          className="text-theme-muted shrink-0 transition group-open:rotate-180"
+          size={17}
+        />
+      </summary>
+      <div className="border-theme-border divide-theme-border divide-y border-t">{children}</div>
+    </details>
+  );
+}
+
 function SettingsMenuItem({
   icon: Icon,
   title,
@@ -1801,6 +2055,49 @@ function SettingsCard({
       )}
       {children}
     </section>
+  );
+}
+
+function SettingsDisclosure({
+  title,
+  description,
+  icon: Icon,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  description: string;
+  icon?: LucideIcon;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <details
+      className="bg-theme-card border-theme-border group overflow-hidden rounded-2xl border"
+      open={isOpen}
+      onToggle={(event) => setIsOpen(event.currentTarget.open)}
+    >
+      <summary className="hover:bg-theme-primary/5 flex min-h-17 cursor-pointer list-none items-center gap-3 px-4 py-3 transition [&::-webkit-details-marker]:hidden">
+        {Icon && (
+          <span className="bg-theme-primary/10 text-theme-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
+            <Icon size={17} />
+          </span>
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="text-theme-text block text-sm font-bold">{title}</span>
+          <span className="text-theme-muted mt-0.5 block text-[11px] leading-snug">
+            {description}
+          </span>
+        </span>
+        <ChevronDown
+          className="text-theme-muted shrink-0 transition group-open:rotate-180"
+          size={17}
+        />
+      </summary>
+      <div className="border-theme-border flex flex-col gap-4 border-t p-4">{children}</div>
+    </details>
   );
 }
 

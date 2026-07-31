@@ -1,29 +1,45 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, Lock, X } from "lucide-react";
 import { ResponsiveDialog } from "~/components/responsive-dialog";
 import { ExpenseForm } from "~/components/modules/finances/receipt-form";
-import { calculateFinances, type FinanceExpense } from "~/lib/finances";
+import type { FinanceExpense, Transaction } from "~/lib/finances";
 import { Link } from "~/components/ui/link";
 import { ExpenseReceipt } from "~/components/modules/finances/receipt";
 import type { Database } from "~/types/database";
 import { useTripRoute } from "~/providers/trip-route-provider";
 import { announceNavigationStart } from "~/lib/navigation-feedback";
+import type { CurrencyCode } from "~/lib/currencies";
 
 type User = Pick<Database["public"]["Tables"]["users"]["Row"], "id" | "name"> & {
   phone?: string | null;
+  revolut_url?: string | null;
+  payment_note?: string | null;
+};
+
+export type FinanceLedgerView = {
+  balance: number;
+  debts: Transaction[];
+  receivables: Transaction[];
+  outstandingTotal: number;
+  relationalTransactionCount: number;
+  optimizedTransactionCount: number;
 };
 
 export function FinancesScreen({
   initialExpenses,
   initialUsers,
+  initialLedgers = {},
+  canViewAllExpenses = false,
   subjectUserId,
   previewUserName,
 }: {
   initialExpenses: FinanceExpense[];
   initialUsers: User[];
+  initialLedgers?: Partial<Record<CurrencyCode, FinanceLedgerView>>;
+  canViewAllExpenses?: boolean;
   subjectUserId?: string;
   previewUserName?: string | null;
 }) {
@@ -36,37 +52,22 @@ export function FinancesScreen({
     isClosed,
     financeMode,
     settlementStrategy,
+    defaultCurrency,
   } = useTripRoute();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const activeUserId = subjectUserId ?? viewerUserId;
   const isPreview = Boolean(
     isAdmin && previewUserName && viewerUserId && activeUserId !== viewerUserId,
   );
-  const isReadOnly = isClosed || isPreview;
+  const expenseReadOnly = isClosed || isPreview;
+  const settlementReadOnly = isPreview;
 
   const isFinanceEnabled = modules.finances;
-
-  const { balances, transactions, relationalTransactions, optimizedTransactions } = useMemo(
-    () => calculateFinances(initialExpenses, initialUsers, financeMode, settlementStrategy),
-    [financeMode, initialExpenses, initialUsers, settlementStrategy],
-  );
-
-  const debts = useMemo(
-    () => transactions.filter((transaction) => transaction.from === activeUserId),
-    [activeUserId, transactions],
-  );
-
-  const receivables = useMemo(
-    () => transactions.filter((transaction) => transaction.to === activeUserId),
-    [activeUserId, transactions],
-  );
-
   const handleExpenseSuccess = () => {
     setIsModalOpen(false);
     router.refresh();
   };
 
-  const activeUserBalance = activeUserId ? (balances[activeUserId] ?? 0) : 0;
   return (
     <div className="animate-fade-in pb-safe pt-4">
       {isPreview && (
@@ -113,27 +114,28 @@ export function FinancesScreen({
           </div>
         </div>
       ) : (
-        <ExpenseReceipt
-          expenses={initialExpenses}
-          users={initialUsers}
-          activeUserId={activeUserId}
-          balance={activeUserBalance}
-          debts={debts}
-          receivables={receivables}
-          financeMode={financeMode}
-          settlementStrategy={settlementStrategy}
-          relationalTransactions={relationalTransactions}
-          optimizedTransactions={optimizedTransactions}
-          onDataChanged={router.refresh}
-          onAddExpense={() => {
-            if (!isReadOnly) setIsModalOpen(true);
-          }}
-          readOnly={isReadOnly}
-          canManageExpenses={isAdmin && !isReadOnly}
-        />
+        <>
+          <ExpenseReceipt
+            expenses={initialExpenses}
+            users={initialUsers}
+            activeUserId={activeUserId}
+            defaultCurrency={defaultCurrency}
+            ledgers={initialLedgers}
+            financeMode={financeMode}
+            settlementStrategy={settlementStrategy}
+            onDataChanged={router.refresh}
+            onAddExpense={() => {
+              if (!expenseReadOnly) setIsModalOpen(true);
+            }}
+            expenseReadOnly={expenseReadOnly}
+            settlementReadOnly={settlementReadOnly}
+            canViewAllExpenses={canViewAllExpenses}
+            canManageExpenses={isAdmin && !expenseReadOnly}
+          />
+        </>
       )}
 
-      <ResponsiveDialog isOpen={isModalOpen && !isReadOnly} setIsOpen={setIsModalOpen}>
+      <ResponsiveDialog isOpen={isModalOpen && !expenseReadOnly} setIsOpen={setIsModalOpen}>
         <ExpenseForm
           users={initialUsers}
           activeUserId={viewerUserId ?? ""}

@@ -8,6 +8,7 @@ import {
   Check,
   ChevronRight,
   Copy,
+  Download,
   Gamepad2,
   Music2,
   ReceiptText,
@@ -24,6 +25,7 @@ import { useTripRoute } from "~/providers/trip-route-provider";
 import { Avatar } from "~/components/ui/avatar";
 import { ResponsiveDialog } from "~/components/responsive-dialog";
 import { cn } from "~/lib/utils";
+import { usePwaInstall } from "~/components/pwa/pwa-provider";
 
 const ICONS: Record<TripModuleKey, LucideIcon> = {
   schedule: CalendarDays,
@@ -35,6 +37,7 @@ const ICONS: Record<TripModuleKey, LucideIcon> = {
 };
 
 export function MoreMenu({ onNavigate }: { onNavigate?: () => void }) {
+  const { showInstallAction, requestInstall } = usePwaInstall();
   const [feedback, setFeedback] = useState<"link" | "pin" | null>(null);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const {
@@ -192,6 +195,28 @@ export function MoreMenu({ onNavigate }: { onNavigate?: () => void }) {
             ))}
           </div>
         </section>
+      )}
+
+      {showInstallAction && (
+        <button
+          type="button"
+          onClick={() => {
+            void requestInstall();
+            onNavigate?.();
+          }}
+          className="bg-theme-card border-theme-border text-theme-text flex min-h-14 w-full items-center gap-3 rounded-2xl border px-4 text-left"
+        >
+          <span className="bg-theme-primary/10 text-theme-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
+            <Download size={17} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold">Zainstaluj aplikację</span>
+            <span className="text-theme-muted mt-0.5 block text-[11px]">
+              Otwieraj Wyjezdnika bezpośrednio z telefonu
+            </span>
+          </span>
+          <ChevronRight className="text-theme-muted shrink-0" size={17} />
+        </button>
       )}
 
       <section className="bg-theme-bg border-theme-border sticky -bottom-6 z-20 -mx-6 mt-1 -mb-6 border-t px-5 pt-3 pb-2 shadow-[0_-18px_28px_var(--theme-bg)]">

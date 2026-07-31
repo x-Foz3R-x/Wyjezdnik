@@ -13,6 +13,7 @@ export type Database = {
           amount: number;
           created_at: string | null;
           created_by: string | null;
+          currency: string;
           date: string | null;
           deleted_at: string | null;
           deleted_by: string | null;
@@ -32,6 +33,7 @@ export type Database = {
           amount: number;
           created_at?: string | null;
           created_by?: string | null;
+          currency?: string;
           date?: string | null;
           deleted_at?: string | null;
           deleted_by?: string | null;
@@ -51,6 +53,7 @@ export type Database = {
           amount?: number;
           created_at?: string | null;
           created_by?: string | null;
+          currency?: string;
           date?: string | null;
           deleted_at?: string | null;
           deleted_by?: string | null;
@@ -539,10 +542,13 @@ export type Database = {
           closed_by: string | null;
           created_at: string | null;
           dashboard_widgets: Json;
+          default_currency: string;
           destination_address: string | null;
           destination_map_url: string | null;
           destination_name: string | null;
           end_date: string | null;
+          expense_viewer_ids: string[];
+          expense_visibility: string;
           finance_mode: string;
           id: string;
           invite_token: string;
@@ -564,10 +570,13 @@ export type Database = {
           closed_by?: string | null;
           created_at?: string | null;
           dashboard_widgets?: Json;
+          default_currency?: string;
           destination_address?: string | null;
           destination_map_url?: string | null;
           destination_name?: string | null;
           end_date?: string | null;
+          expense_viewer_ids?: string[];
+          expense_visibility?: string;
           finance_mode?: string;
           id?: string;
           invite_token?: string;
@@ -589,10 +598,13 @@ export type Database = {
           closed_by?: string | null;
           created_at?: string | null;
           dashboard_widgets?: Json;
+          default_currency?: string;
           destination_address?: string | null;
           destination_map_url?: string | null;
           destination_name?: string | null;
           end_date?: string | null;
+          expense_viewer_ids?: string[];
+          expense_visibility?: string;
           finance_mode?: string;
           id?: string;
           invite_token?: string;
@@ -676,7 +688,9 @@ export type Database = {
           is_admin: boolean;
           last_seen_at: string | null;
           name: string;
+          payment_note: string | null;
           phone: string | null;
+          revolut_url: string | null;
           team_id: string | null;
           trip_id: string;
           updated_at: string | null;
@@ -689,7 +703,9 @@ export type Database = {
           is_admin?: boolean;
           last_seen_at?: string | null;
           name: string;
+          payment_note?: string | null;
           phone?: string | null;
+          revolut_url?: string | null;
           team_id?: string | null;
           trip_id: string;
           updated_at?: string | null;
@@ -702,7 +718,9 @@ export type Database = {
           is_admin?: boolean;
           last_seen_at?: string | null;
           name?: string;
+          payment_note?: string | null;
           phone?: string | null;
+          revolut_url?: string | null;
           team_id?: string | null;
           trip_id?: string;
           updated_at?: string | null;
@@ -734,6 +752,7 @@ export type Database = {
         Args: {
           p_amount: number;
           p_created_by: string;
+          p_currency: string;
           p_description: string;
           p_payer_id: string;
           p_shares?: Json;
@@ -778,6 +797,7 @@ export type Database = {
         Args: {
           p_amount: number;
           p_changed_by: string;
+          p_currency: string;
           p_description: string;
           p_expense_id: string;
           p_payer_id: string;

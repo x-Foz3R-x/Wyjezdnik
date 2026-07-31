@@ -8,6 +8,8 @@ import { getTripSession } from "~/lib/server/trip-session";
 import { TripRouteProvider } from "~/providers/trip-route-provider";
 import { parseTripLayout, parseTripModules } from "~/lib/trip-config";
 import { parseFinanceMode, parseSettlementStrategy } from "~/lib/finances";
+import { parseCurrencyCode } from "~/lib/currencies";
+import { LocalProfileOffer } from "~/components/profile/local-profile-offer";
 
 export default async function ProtectedTripLayout({
   children,
@@ -41,6 +43,7 @@ export default async function ProtectedTripLayout({
         userAvatarUrl: participant.avatar_url,
         isAdmin: participant.is_admin,
         isClosed: trip.status === "closed",
+        defaultCurrency: parseCurrencyCode(trip.default_currency),
         financeMode: parseFinanceMode(trip.finance_mode),
         settlementStrategy: parseSettlementStrategy(trip.settlement_strategy),
         modules,
@@ -52,6 +55,17 @@ export default async function ProtectedTripLayout({
     >
       <ActivityPing tripKey={tripKey} />
       <RememberTrip tripName={trip.name} urlKey={trip.url_key} userName={participant.name} />
+      <LocalProfileOffer
+        tripKey={tripKey}
+        userId={participant.id}
+        currentProfile={{
+          name: participant.name,
+          avatarUrl: participant.avatar_url ?? "",
+          phone: participant.phone ?? "",
+          revolutUrl: participant.revolut_url ?? "",
+          paymentNote: participant.payment_note ?? "",
+        }}
+      />
       <>
         <div className="min-h-dvh px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(8.5rem+env(safe-area-inset-bottom))]">
           {trip.status === "closed" && (
@@ -62,7 +76,7 @@ export default async function ProtectedTripLayout({
               <span className="min-w-0">
                 <span className="block text-xs font-bold">Wyjazd zakończony</span>
                 <span className="text-theme-muted block text-[11px]">
-                  Historia jest dostępna tylko do wglądu.
+                  Historia jest chroniona; nadal możecie zgłaszać i potwierdzać zwroty.
                 </span>
               </span>
             </aside>

@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
-import { CalendarDays, MapPin, Puzzle, Users } from "lucide-react";
+import { CalendarDays, CircleDollarSign, MapPin, Puzzle, Users } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { TRIP_MODULES } from "~/lib/trip-config";
 import type { TripFormData } from "./index";
@@ -42,6 +42,7 @@ export function StepReview({
           label="Cel"
           value={data.destinationName || data.destinationAddress || "Do uzupełnienia później"}
         />
+        <SummaryRow icon={CircleDollarSign} label="Waluta" value={data.defaultCurrency} />
         <SummaryRow
           icon={Users}
           label="Ekipa"

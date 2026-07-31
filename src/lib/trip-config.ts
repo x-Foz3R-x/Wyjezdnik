@@ -28,8 +28,8 @@ export const DEFAULT_TRIP_MODULES: TripModules = {
 export const TRIP_MODULES = [
   {
     key: "scoreboard",
-    name: "Rozgrywka",
-    shortName: "Rozgrywka",
+    name: "Rozrywka",
+    shortName: "Rozrywka",
     description: "Wybierz punktację, wyzwania, głosowania lub losowania.",
     href: "/gameplay",
   },
@@ -231,14 +231,19 @@ export function getAutomaticDashboardWidgets({
   modules,
   hasDestination,
   hasPlaylists,
+  gameplayWidgets = [],
 }: {
   modules: TripModules;
   hasDestination: boolean;
   hasPlaylists: boolean;
+  gameplayWidgets?: GameplayDashboardWidgetKey[];
 }): DashboardWidgetKey[] {
   return [
     ...(hasDestination ? (["destination"] as const) : []),
     ...(modules.schedule ? (["schedule"] as const) : []),
+    ...(modules.shopping ? (["shopping"] as const) : []),
+    ...(modules.finances ? (["finances"] as const) : []),
+    ...gameplayWidgets,
     ...(hasPlaylists ? (["playlist"] as const) : []),
     "packing",
     "participants",

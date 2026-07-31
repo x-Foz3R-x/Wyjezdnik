@@ -1,7 +1,15 @@
 "use client";
 
 import { memo, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, Check, ChevronDown, Copy, HelpCircle } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  Check,
+  ChevronDown,
+  Copy,
+  ExternalLink,
+  HelpCircle,
+} from "lucide-react";
 import type { Database } from "~/types/database";
 import {
   formatFinanceAmount,
@@ -17,42 +25,50 @@ import { useTripRoute } from "~/providers/trip-route-provider";
 import { decideSettlementAction, reportSettlementAction } from "~/app/actions/finances";
 import { ResponsiveDialog } from "~/components/responsive-dialog";
 import { runClientAction } from "~/lib/client-action";
+import type { CurrencyCode } from "~/lib/currencies";
 
 type User = Pick<Database["public"]["Tables"]["users"]["Row"], "id" | "name"> & {
   phone?: string | null;
+  revolut_url?: string | null;
+  payment_note?: string | null;
 };
 
 interface ReceiptPaymentSectionProps {
   settlements: FinanceExpense[];
   users: User[];
   activeUserId: string;
+  currency: CurrencyCode;
   balance: number;
   debts: Transaction[];
   receivables: Transaction[];
   financeMode: FinanceMode;
   settlementStrategy: SettlementStrategy;
-  relationalTransactions: Transaction[];
-  optimizedTransactions: Transaction[];
+  relationalTransactionCount: number;
+  optimizedTransactionCount: number;
   onDataChanged: () => void;
   readOnly: boolean;
+  showCurrencyInHeading?: boolean;
 }
 
 export const ReceiptPaymentSection = memo(function ReceiptPaymentSection({
   settlements,
   users,
   activeUserId,
+  currency,
   balance,
   debts,
   receivables,
   financeMode,
   settlementStrategy,
-  relationalTransactions,
-  optimizedTransactions,
+  relationalTransactionCount,
+  optimizedTransactionCount,
   onDataChanged,
   readOnly,
+  showCurrencyInHeading = false,
 }: ReceiptPaymentSectionProps) {
   const { urlKey } = useTripRoute();
   const [selectedDebt, setSelectedDebt] = useState<Transaction | null>(null);
+  const [paymentAmountInput, setPaymentAmountInput] = useState("");
   const [isStrategyOpen, setIsStrategyOpen] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
   const [processingKey, setProcessingKey] = useState<string | null>(null);
@@ -63,8 +79,10 @@ export const ReceiptPaymentSection = memo(function ReceiptPaymentSection({
 
   const getUser = (userId: string) => users.find((user) => user.id === userId);
   const getUserName = (userId: string) => getUser(userId)?.name ?? "Nieznany";
-  const money = (value: number, currency = false) =>
-    formatFinanceAmount(value, financeMode, { currency });
+  const money = (value: number, showCurrency = false) =>
+    formatFinanceAmount(value, financeMode, {
+      currency: showCurrency ? currency : undefined,
+    });
 
   const pendingIncoming = settlements.filter(
     (settlement) =>
@@ -84,8 +102,10 @@ export const ReceiptPaymentSection = memo(function ReceiptPaymentSection({
     pendingIncoming.length === 0 &&
     pendingOutgoing.length === 0;
 
-  const findPendingToRecipient = (recipientId: string) =>
-    pendingOutgoing.find((settlement) => getSettlementRecipientId(settlement) === recipientId);
+  const pendingAmountToRecipient = (recipientId: string) =>
+    pendingOutgoing
+      .filter((settlement) => getSettlementRecipientId(settlement) === recipientId)
+      .reduce((sum, settlement) => sum + Number(settlement.amount), 0);
   const pendingAmountFromDebtor = (debtorId: string) =>
     pendingIncoming
       .filter((settlement) => settlement.user_id === debtorId)
@@ -113,6 +133,7 @@ export const ReceiptPaymentSection = memo(function ReceiptPaymentSection({
           tripKey: urlKey,
           recipientId,
           amount,
+          currency,
         }),
       "Nie udało się zgłosić przelewu.",
     );
@@ -160,13 +181,33 @@ export const ReceiptPaymentSection = memo(function ReceiptPaymentSection({
 
   const selectedCreditor = selectedDebt ? getUser(selectedDebt.to) : null;
   const selectedPhone = selectedCreditor?.phone ?? null;
+  const selectedRevolutUrl = selectedCreditor?.revolut_url
+    ? normalizeRevolutUrl(selectedCreditor.revolut_url)
+    : null;
+  const selectedPendingAmount = selectedDebt ? pendingAmountToRecipient(selectedDebt.to) : 0;
+  const selectedAvailableAmount = selectedDebt
+    ? Math.max(0, selectedDebt.amount - selectedPendingAmount)
+    : 0;
+  const parsedPaymentAmount = parsePaymentAmount(paymentAmountInput);
+  const isPaymentAmountValid =
+    parsedPaymentAmount !== null &&
+    parsedPaymentAmount > 0 &&
+    parsedPaymentAmount <= selectedAvailableAmount + 0.001 &&
+    (financeMode !== "whole" || Number.isInteger(parsedPaymentAmount));
+
+  const openPaymentDialog = (debt: Transaction) => {
+    const availableAmount = Math.max(0, debt.amount - pendingAmountToRecipient(debt.to));
+    setActionError(null);
+    setSelectedDebt(debt);
+    setPaymentAmountInput(formatPaymentInput(availableAmount));
+  };
 
   return (
     <>
       <section className="mt-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-receipt-ink text-[10px] font-black tracking-[0.14em] uppercase">
-            Do rozliczenia
+            Do rozliczenia{showCurrencyInHeading ? ` · ${currency}` : ""}
           </h2>
           {settlementStrategy === "optimized" && (
             <button
@@ -212,7 +253,7 @@ export const ReceiptPaymentSection = memo(function ReceiptPaymentSection({
                           type="button"
                           disabled={isConfirming || isRejecting}
                           onClick={() => void handleSettlementDecision(settlement.id, "confirmed")}
-                          className="bg-receipt-ink text-receipt-paper min-h-11 flex-1 px-3 text-[10px] font-black uppercase disabled:opacity-40"
+                          className="border-receipt-ink/35 bg-receipt-ink/[0.06] text-receipt-ink min-h-11 flex-1 border px-3 text-[10px] font-black uppercase disabled:opacity-40"
                         >
                           {isConfirming ? "Zapisywanie…" : "Potwierdź"}
                         </button>
@@ -248,50 +289,38 @@ export const ReceiptPaymentSection = memo(function ReceiptPaymentSection({
                 <div className="divide-receipt-line mt-1 divide-y divide-dashed">
                   {debts.map((debt) => {
                     const creditor = getUser(debt.to);
-                    const pending = findPendingToRecipient(debt.to);
+                    const pendingAmount = pendingAmountToRecipient(debt.to);
+                    const availableAmount = Math.max(0, debt.amount - pendingAmount);
 
                     return (
                       <div key={debt.to} className="py-3">
-                        {pending ? (
-                          <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
                             <p className="text-receipt-ink flex min-w-0 items-center gap-2 text-xs font-black">
                               <ArrowUpRight size={16} className="text-receipt-stamp shrink-0" />
                               {creditor?.name ?? "Nieznany"}
                             </p>
-                            <div className="text-right">
-                              <span className="text-receipt-stamp block text-sm font-black">
-                                {money(debt.amount, true)}
-                              </span>
-                              <span className="text-receipt-muted text-[9px] font-bold">
-                                Czeka na potwierdzenie
-                              </span>
-                            </div>
+                            {pendingAmount > 0 && (
+                              <p className="text-receipt-muted mt-1 ml-6 text-[9px] font-bold">
+                                {money(pendingAmount, true)} czeka na potwierdzenie
+                              </p>
+                            )}
                           </div>
-                        ) : (
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="text-receipt-ink flex min-w-0 items-center gap-2 text-xs font-black">
-                              <ArrowUpRight size={16} className="text-receipt-stamp shrink-0" />
-                              {creditor?.name ?? "Nieznany"}
-                            </p>
-                            <div className="flex shrink-0 items-center gap-3">
-                              <span className="text-receipt-stamp text-sm font-black">
-                                {money(debt.amount, true)}
-                              </span>
-                              {!readOnly && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActionError(null);
-                                    setSelectedDebt(debt);
-                                  }}
-                                  className="border-receipt-ink text-receipt-ink min-h-10 border-b border-dotted px-1 text-[10px] font-black uppercase"
-                                >
-                                  Przelej
-                                </button>
-                              )}
-                            </div>
+                          <div className="flex shrink-0 items-center gap-3">
+                            <span className="text-receipt-stamp text-sm font-black">
+                              {money(debt.amount, true)}
+                            </span>
+                            {!readOnly && availableAmount > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => openPaymentDialog(debt)}
+                                className="border-receipt-ink text-receipt-ink min-h-10 border-b border-dotted px-1 text-[10px] font-black uppercase"
+                              >
+                                {pendingAmount > 0 ? "Dodaj" : "Oddaj"}
+                              </button>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
                     );
                   })}
@@ -381,7 +410,7 @@ export const ReceiptPaymentSection = memo(function ReceiptPaymentSection({
             }
           >
             {formatFinanceAmount(balance, financeMode, {
-              currency: true,
+              currency,
               sign: true,
             })}
           </span>
@@ -403,11 +432,28 @@ export const ReceiptPaymentSection = memo(function ReceiptPaymentSection({
               </p>
             )}
             <div className="border-theme-border bg-theme-card rounded-2xl border p-5 text-center">
-              <p className="text-theme-muted text-xs font-bold tracking-widest uppercase">Kwota</p>
-              <p className="text-theme-primary mt-1 text-3xl font-black">
-                {money(selectedDebt.amount, true)}
-              </p>
+              <label className="text-theme-muted text-xs font-bold tracking-widest uppercase">
+                Ile oddajesz
+              </label>
+              <div className="mt-2 flex items-center justify-center gap-2">
+                <input
+                  type="text"
+                  inputMode={financeMode === "whole" ? "numeric" : "decimal"}
+                  value={paymentAmountInput}
+                  onChange={(event) =>
+                    setPaymentAmountInput((current) =>
+                      normalizePaymentInput(event.target.value, financeMode, current),
+                    )
+                  }
+                  className="text-theme-primary w-36 bg-transparent text-right text-3xl font-black outline-hidden"
+                  aria-label="Kwota oddawanych pieniędzy"
+                />
+                <span className="text-theme-primary text-lg font-black">{currency}</span>
+              </div>
               <p className="text-theme-text mt-2 text-base font-bold">{selectedCreditor?.name}</p>
+              <p className="text-theme-muted mt-1 text-xs">
+                Pozostało do zgłoszenia: {money(selectedAvailableAmount, true)}
+              </p>
             </div>
 
             {selectedPhone && (
@@ -430,10 +476,45 @@ export const ReceiptPaymentSection = memo(function ReceiptPaymentSection({
               </button>
             )}
 
+            {selectedRevolutUrl && (
+              <a
+                href={selectedRevolutUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="border-theme-border bg-theme-card flex min-h-14 w-full items-center justify-between gap-4 rounded-2xl border px-4"
+              >
+                <span className="text-left">
+                  <span className="text-theme-muted block text-xs">Revolut</span>
+                  <span className="text-theme-text block text-sm font-bold">
+                    {selectedCreditor?.revolut_url}
+                  </span>
+                </span>
+                <ExternalLink className="text-theme-primary shrink-0" size={20} />
+              </a>
+            )}
+
+            {selectedCreditor?.payment_note && (
+              <div className="border-theme-border bg-theme-card rounded-2xl border px-4 py-3">
+                <p className="text-theme-muted text-xs">Inny sposób zwrotu</p>
+                <p className="text-theme-text mt-1 text-sm font-semibold whitespace-pre-wrap">
+                  {selectedCreditor.payment_note}
+                </p>
+              </div>
+            )}
+
+            {!selectedPhone && !selectedRevolutUrl && !selectedCreditor?.payment_note && (
+              <p className="border-theme-border text-theme-muted rounded-2xl border border-dashed px-4 py-3 text-xs">
+                Ta osoba nie podała jeszcze danych do przelewu. Może je uzupełnić w swoim profilu.
+              </p>
+            )}
+
             <button
               type="button"
-              disabled={processingKey === `report:${selectedDebt.to}`}
-              onClick={() => void handleReportPayment(selectedDebt.to, selectedDebt.amount)}
+              disabled={processingKey === `report:${selectedDebt.to}` || !isPaymentAmountValid}
+              onClick={() =>
+                parsedPaymentAmount !== null &&
+                void handleReportPayment(selectedDebt.to, parsedPaymentAmount)
+              }
               className="bg-theme-primary text-theme-primary-foreground min-h-13 w-full rounded-2xl px-4 text-sm font-black disabled:opacity-40"
             >
               {processingKey === `report:${selectedDebt.to}`
@@ -452,9 +533,9 @@ export const ReceiptPaymentSection = memo(function ReceiptPaymentSection({
       >
         <div className="space-y-4">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-            <StrategyCount label="Normalnie" count={relationalTransactions.length} />
+            <StrategyCount label="Normalnie" count={relationalTransactionCount} />
             <span className="text-theme-muted text-lg">→</span>
-            <StrategyCount label="Po skróceniu" count={optimizedTransactions.length} highlighted />
+            <StrategyCount label="Po skróceniu" count={optimizedTransactionCount} highlighted />
           </div>
           <div className="border-theme-border bg-theme-card rounded-2xl border p-4">
             <p className="text-theme-muted text-[10px] font-bold tracking-wider uppercase">
@@ -496,4 +577,29 @@ function StrategyCount({
       <span className="text-theme-muted block text-[10px]">przelewów</span>
     </div>
   );
+}
+
+function parsePaymentAmount(value: string) {
+  const normalized = value.trim().replace(",", ".");
+  if (!normalized) return null;
+  const amount = Number(normalized);
+  return Number.isFinite(amount) ? amount : null;
+}
+
+function formatPaymentInput(value: number) {
+  return String(Math.round(value * 100) / 100).replace(".", ",");
+}
+
+function normalizePaymentInput(value: string, mode: FinanceMode, previous: string) {
+  const compact = value.replace(/\s/g, "");
+  if (mode === "whole") return compact.replace(/\D/g, "");
+  const localized = compact.replace(/\./g, ",");
+  return /^\d*(?:,\d{0,2})?$/.test(localized) ? localized : previous;
+}
+
+function normalizeRevolutUrl(value: string) {
+  const trimmed = value.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^(?:www\.)?revolut\.me\//i.test(trimmed)) return `https://${trimmed}`;
+  return `https://revolut.me/${trimmed.replace(/^@/, "")}`;
 }

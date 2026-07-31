@@ -20,7 +20,7 @@ export const getTripParticipant = cache(async (tripId: string, userId: string) =
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("users")
-    .select("id, name, avatar_url, is_admin")
+    .select("id, name, avatar_url, is_admin, phone, revolut_url, payment_note")
     .eq("id", userId)
     .eq("trip_id", tripId)
     .maybeSingle();

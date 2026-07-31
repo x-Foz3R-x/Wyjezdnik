@@ -21,6 +21,8 @@ const nullableText = (max: number) => z.string().trim().max(max).nullable();
 const nullableUrl = z.string().trim().url().max(1000).nullable();
 const financeModeSchema = z.enum(["legacy", "whole", "precise"]);
 const settlementStrategySchema = z.enum(["relational", "optimized"]);
+const expenseVisibilitySchema = z.enum(["everyone", "managers", "selected"]);
+const currencySchema = z.enum(["PLN", "EUR", "USD", "GBP", "CHF", "CZK", "HUF"]);
 
 const tripModulesSchema = z.object({
   schedule: z.boolean(),
@@ -46,6 +48,7 @@ const tripDetailsSchema = z
     destinationName: nullableText(120),
     destinationAddress: nullableText(300),
     destinationMapUrl: nullableUrl,
+    defaultCurrency: currencySchema,
     playlistUrl: nullableUrl,
     modules: tripModulesSchema,
     dashboardWidgets: z.array(z.enum(DASHBOARD_WIDGET_KEYS)).max(DASHBOARD_WIDGET_KEYS.length),
@@ -79,6 +82,8 @@ const updateTripSettingsSchema = tripDetailsSchema.and(
     tripKey: z.string().regex(/^[0-9a-f]{12}$/),
     financeMode: financeModeSchema,
     settlementStrategy: settlementStrategySchema,
+    expenseVisibility: expenseVisibilitySchema,
+    expenseViewerIds: z.array(z.string().uuid()).max(100),
     navigation: z.array(z.enum(TRIP_NAVIGATION_KEYS)).max(TRIP_NAVIGATION_KEYS.length),
   }),
 );
@@ -87,6 +92,13 @@ const updateParticipantProfileSchema = z.object({
   tripKey: z.string().regex(/^[0-9a-f]{12}$/),
   name: z.string().trim().min(1).max(60),
   avatarUrl: nullableUrl,
+  phone: nullableText(40),
+  revolutUrl: nullableText(300),
+  paymentNote: nullableText(500),
+  newPin: z
+    .string()
+    .regex(/^\d{4}$/)
+    .nullable(),
 });
 
 const addParticipantSchema = z.object({
@@ -247,6 +259,7 @@ export async function createTripAction(input: CreateTripInput): Promise<CreateTr
       destination_name: values.destinationName,
       destination_address: values.destinationAddress,
       destination_map_url: values.destinationMapUrl,
+      default_currency: values.defaultCurrency,
       playlist_url: values.playlistUrl,
       modules: values.modules,
       dashboard_widgets: values.dashboardWidgets,
@@ -259,7 +272,18 @@ export async function createTripAction(input: CreateTripInput): Promise<CreateTr
       .single();
 
     if (tripResult.error && ["42703", "PGRST204"].includes(tripResult.error.code)) {
-      const { packing_presets: _packingPresets, ...legacyTripPayload } = tripPayload;
+      const legacyTripPayload = {
+        name: tripPayload.name,
+        start_date: tripPayload.start_date,
+        end_date: tripPayload.end_date,
+        destination_name: tripPayload.destination_name,
+        destination_address: tripPayload.destination_address,
+        destination_map_url: tripPayload.destination_map_url,
+        default_currency: tripPayload.default_currency,
+        playlist_url: tripPayload.playlist_url,
+        modules: tripPayload.modules,
+        dashboard_widgets: tripPayload.dashboard_widgets,
+      };
       tripResult = await supabase
         .from("trips")
         .insert(legacyTripPayload)
@@ -393,6 +417,19 @@ export async function updateTripSettingsAction(
     }
   }
 
+  const uniqueExpenseViewerIds = [...new Set(values.expenseViewerIds)];
+  if (uniqueExpenseViewerIds.length > 0) {
+    const { count, error: viewersError } = await supabase
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .eq("trip_id", session.tripId)
+      .in("id", uniqueExpenseViewerIds);
+
+    if (viewersError || count !== uniqueExpenseViewerIds.length) {
+      return { ok: false, error: "Wybrane osoby nie należą już do tego wyjazdu." };
+    }
+  }
+
   const currentLayout =
     currentTrip.layout_config &&
     typeof currentTrip.layout_config === "object" &&
@@ -410,9 +447,12 @@ export async function updateTripSettingsAction(
       destination_name: values.destinationName,
       destination_address: values.destinationAddress,
       destination_map_url: values.destinationMapUrl,
+      default_currency: values.defaultCurrency,
       playlist_url: values.playlistUrl,
       finance_mode: values.financeMode,
       settlement_strategy: values.settlementStrategy,
+      expense_visibility: values.expenseVisibility,
+      expense_viewer_ids: values.expenseVisibility === "selected" ? uniqueExpenseViewerIds : [],
       modules: values.modules,
       dashboard_widgets: values.dashboardWidgets,
       layout_config: {
@@ -444,13 +484,18 @@ export async function updateParticipantProfileAction(
   const values = parsed.data;
   const context = await getTripActionContext(values.tripKey);
   if (!context) return { ok: false, error: "Sesja wygasła. Dołącz ponownie." };
-  if (context.isClosed) {
-    return { ok: false, error: "Zamknięty wyjazd jest dostępny tylko do wglądu." };
-  }
 
   const { error } = await context.supabase
     .from("users")
-    .update({ name: values.name, avatar_url: values.avatarUrl })
+    .update({
+      name: values.name,
+      avatar_url: values.avatarUrl,
+      phone: values.phone,
+      revolut_url: values.revolutUrl,
+      payment_note: values.paymentNote,
+      ...(values.newPin ? { user_pin: values.newPin } : {}),
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", context.participant.id)
     .eq("trip_id", context.session.tripId);
 

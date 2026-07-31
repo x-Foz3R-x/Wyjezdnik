@@ -15,13 +15,16 @@ import { ExpenseForm } from "~/components/modules/finances/receipt-form";
 import { deleteExpenseAction } from "~/app/actions/finances";
 import { useTripRoute } from "~/providers/trip-route-provider";
 import { runClientAction } from "~/lib/client-action";
+import { parseCurrencyCode } from "~/lib/currencies";
 
 type User = Pick<Database["public"]["Tables"]["users"]["Row"], "id" | "name">;
 
 interface ReceiptExpenseListProps {
   expenses: FinanceExpense[];
   users: User[];
+  activeUserId: string;
   financeMode: FinanceMode;
+  canViewAllExpenses: boolean;
   canManageExpenses: boolean;
   onDataChanged: () => void;
 }
@@ -31,12 +34,15 @@ const INITIAL_VISIBLE_EXPENSES = 4;
 export const ReceiptExpenseList = memo(function ReceiptExpenseList({
   expenses,
   users,
+  activeUserId,
   financeMode,
+  canViewAllExpenses,
   canManageExpenses,
   onDataChanged,
 }: ReceiptExpenseListProps) {
   const { urlKey, userId } = useTripRoute();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [scope, setScope] = useState<"mine" | "all">("mine");
   const [selectedExpense, setSelectedExpense] = useState<FinanceExpense | null>(null);
   const [editingExpense, setEditingExpense] = useState<FinanceExpense | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -46,12 +52,29 @@ export const ReceiptExpenseList = memo(function ReceiptExpenseList({
     () =>
       expenses
         .filter((expense) => !hiddenExpenseIds.has(expense.id))
+        .filter((expense) => {
+          if (scope === "all" || expense.user_id === activeUserId) return true;
+          return getExpenseParticipantShares(expense, financeMode).some(
+            (share) => share.userId === activeUserId && share.amount > 0,
+          );
+        })
         .sort((first, second) => {
           const firstDate = first.created_at ? new Date(first.created_at).getTime() : 0;
           const secondDate = second.created_at ? new Date(second.created_at).getTime() : 0;
           return secondDate - firstDate;
         }),
-    [expenses, hiddenExpenseIds],
+    [activeUserId, expenses, financeMode, hiddenExpenseIds, scope],
+  );
+  const otherExpensesCount = useMemo(
+    () =>
+      expenses.filter(
+        (expense) =>
+          expense.user_id !== activeUserId &&
+          !getExpenseParticipantShares(expense, financeMode).some(
+            (share) => share.userId === activeUserId && share.amount > 0,
+          ),
+      ).length,
+    [activeUserId, expenses, financeMode],
   );
   const hasMoreExpenses = newestFirstExpenses.length > INITIAL_VISIBLE_EXPENSES;
   const visibleExpenses =
@@ -101,21 +124,63 @@ export const ReceiptExpenseList = memo(function ReceiptExpenseList({
   return (
     <>
       <section className="mt-5">
+        <div className="mb-2 flex min-h-8 items-center justify-end gap-1.5 text-[9px] font-bold uppercase">
+          <span className="text-receipt-muted mr-auto">Widok historii</span>
+          {canViewAllExpenses ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setScope("mine");
+                  setIsExpanded(false);
+                }}
+                className={
+                  scope === "mine"
+                    ? "text-receipt-ink border-receipt-ink min-h-8 border-b font-black"
+                    : "text-receipt-muted min-h-8"
+                }
+              >
+                Moje
+              </button>
+              <span className="text-receipt-line">/</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setScope("all");
+                  setIsExpanded(false);
+                }}
+                className={
+                  scope === "all"
+                    ? "text-receipt-ink border-receipt-ink min-h-8 border-b font-black"
+                    : "text-receipt-muted min-h-8"
+                }
+              >
+                Wszystkie{otherExpensesCount > 0 ? ` · ${expenses.length}` : ""}
+              </button>
+            </>
+          ) : (
+            <span className="text-receipt-ink">Tylko dotyczące Ciebie</span>
+          )}
+        </div>
         <div className="border-receipt-line grid grid-cols-[2rem_1fr_auto] border-b border-dashed pb-1 text-[10px] font-bold uppercase">
           <span>LP</span>
           <span>Nazwa / płatnik</span>
-          <span>PLN</span>
+          <span>Kwota</span>
         </div>
 
         {visibleExpenses.length === 0 ? (
           <p className="text-receipt-muted border-receipt-line border-b border-dashed py-6 text-center text-[10px] font-semibold uppercase">
-            Brak pozycji na paragonie
+            {scope === "mine" && expenses.length > 0
+              ? "Żadna pozycja na tym paragonie Cię nie dotyczy"
+              : "Brak pozycji na paragonie"}
           </p>
         ) : (
           <ol>
             {visibleExpenses.map((expense, index) => {
               const participantShares = getExpenseParticipantShares(expense, financeMode);
-              const participantNames = participantShares.map((share) => getUserName(share.userId));
+              const participantNames = participantShares
+                .filter((share) => share.amount > 0)
+                .map((share) => getUserName(share.userId));
               const includesEveryone =
                 participantShares.length === users.length &&
                 users.every((user) =>
@@ -136,7 +201,9 @@ export const ReceiptExpenseList = memo(function ReceiptExpenseList({
                       {expense.description}
                     </span>
                     <span className="text-receipt-ink text-right text-xs font-black">
-                      {formatFinanceAmount(Number(expense.amount), financeMode)}
+                      {formatFinanceAmount(Number(expense.amount), financeMode, {
+                        currency: parseCurrencyCode(expense.currency),
+                      })}
                     </span>
                     <span />
                     <span className="text-receipt-muted col-span-2 text-[10px] leading-snug font-semibold">
@@ -179,7 +246,7 @@ export const ReceiptExpenseList = memo(function ReceiptExpenseList({
               <ExpenseDetailRow
                 label="Kwota"
                 value={formatFinanceAmount(Number(selectedExpense.amount), financeMode, {
-                  currency: true,
+                  currency: parseCurrencyCode(selectedExpense.currency),
                 })}
               />
               <ExpenseDetailRow label="Zapłacił/a" value={getUserName(selectedExpense.user_id)} />
@@ -218,7 +285,9 @@ export const ReceiptExpenseList = memo(function ReceiptExpenseList({
                   >
                     <span className="text-theme-text text-sm">{getUserName(share.userId)}</span>
                     <span className="text-theme-primary text-sm font-bold">
-                      {formatFinanceAmount(share.amount, financeMode, { currency: true })}
+                      {formatFinanceAmount(share.amount, financeMode, {
+                        currency: parseCurrencyCode(selectedExpense.currency),
+                      })}
                     </span>
                   </div>
                 ))}

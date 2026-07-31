@@ -2,7 +2,6 @@ import Link from "next/link";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
 import { pl } from "date-fns/locale";
 import {
-  Backpack,
   CalendarDays,
   ChevronRight,
   Clock3,
@@ -13,7 +12,6 @@ import {
   ReceiptText,
   ShoppingBasket,
   Sparkles,
-  Trophy,
   Vote,
   type LucideIcon,
 } from "lucide-react";
@@ -30,6 +28,7 @@ import { formatFinanceAmount, type FinanceMode } from "~/lib/finances";
 import { cn } from "~/lib/utils";
 import type { PackingPresetItem } from "~/lib/packing";
 import type { Database } from "~/types/database";
+import type { CurrencyCode } from "~/lib/currencies";
 
 const HALF_WIDGETS = new Set<DashboardWidgetKey>([
   "dates",
@@ -53,6 +52,7 @@ export function Dashboard({
   playlists,
   modules,
   financeMode,
+  currency,
   dashboardWidgets,
   insights,
   packing,
@@ -70,6 +70,7 @@ export function Dashboard({
   playlists: Array<{ id: string; name: string; url: string }>;
   modules: TripModules;
   financeMode: FinanceMode;
+  currency: CurrencyCode;
   dashboardWidgets: DashboardWidgetKey[];
   insights: DashboardInsights;
   participants: DashboardParticipant[];
@@ -242,7 +243,7 @@ export function Dashboard({
                   icon={ReceiptText}
                   label="Rozliczenia"
                   value={formatFinanceAmount(balance, financeMode, {
-                    currency: true,
+                    currency,
                     sign: true,
                   })}
                   detail={
@@ -286,14 +287,24 @@ export function Dashboard({
 
             if (widget === "polls") {
               const count = insights.scoreboard.openPolls;
+              const activePoll = insights.scoreboard.activePoll;
               return (
                 <CompactWidget
                   key={widget}
                   href={`/t/${urlKey}/gameplay/polls`}
                   icon={Vote}
                   label="Głosowania"
-                  value={count === 0 ? "Spokój" : String(count)}
-                  detail={count === 0 ? "Nic nie czeka na głos" : "decyzje czekają na ekipę"}
+                  value={
+                    activePoll?.needsVote ? "Zagłosuj!" : count === 0 ? "Spokój" : String(count)
+                  }
+                  detail={
+                    activePoll?.needsVote
+                      ? activePoll.question
+                      : count === 0
+                        ? "Nic nie czeka na głos"
+                        : "decyzje czekają na ekipę"
+                  }
+                  attention={Boolean(activePoll?.needsVote)}
                   wide={isWideCompact}
                 />
               );
@@ -403,6 +414,7 @@ function CompactWidget({
   wide,
   color,
   progress,
+  attention = false,
 }: {
   icon: LucideIcon;
   label: string;
@@ -412,11 +424,13 @@ function CompactWidget({
   wide: boolean;
   color?: string;
   progress?: number;
+  attention?: boolean;
 }) {
   const className = cn(
     "bg-theme-card border-theme-border relative flex h-36 min-w-0 flex-col overflow-hidden rounded-2xl border p-4",
     href && "transition active:scale-98",
     wide && "col-span-2",
+    attention && "border-theme-accent/60 bg-theme-accent/8 shadow-[0_0_0_1px_var(--theme-accent)]",
   );
   const content = (
     <>

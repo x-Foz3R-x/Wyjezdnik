@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, Flag, Plus, Sparkles, Trash2, UsersRound, Vote } from "lucide-react";
+import { Check, ChevronDown, Flag, Plus, Sparkles, Trash2, Vote } from "lucide-react";
 import { ResponsiveDialog } from "~/components/responsive-dialog";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -323,7 +323,7 @@ export function GameHub({
                       <span className="text-theme-muted block text-[9px] font-bold tracking-wider uppercase">
                         {poll.status === "open" ? "Głosowanie trwa" : "Zamknięte"}
                       </span>
-                      <strong className={cn("font-heading text-theme-text mt-0.5 block text-lg font-semibold", poll.status !== "open" && "truncate")}>
+                      <strong className="font-heading text-theme-text mt-0.5 line-clamp-2 block text-lg leading-tight font-semibold">
                         {poll.question}
                       </strong>
                     </span>
@@ -337,6 +337,9 @@ export function GameHub({
                   </summary>
 
                   <div className="border-theme-border border-t p-4">
+                    <p className="text-theme-text mb-4 text-sm leading-relaxed font-semibold whitespace-pre-wrap">
+                      {poll.question}
+                    </p>
                     <div className="flex flex-col gap-2">
                       {options.map((option) => {
                         const count =
@@ -638,7 +641,9 @@ function PollForm({
         label="Pytanie"
         value={question}
         onChange={(event) => setQuestion(event.target.value)}
+        maxLength={240}
       />
+      <p className="text-theme-muted -mt-2 text-right text-[10px]">{question.length}/240</p>
       <div className="flex flex-col gap-2">
         {options.map((option, index) => (
           <div key={index} className="flex items-center gap-2">

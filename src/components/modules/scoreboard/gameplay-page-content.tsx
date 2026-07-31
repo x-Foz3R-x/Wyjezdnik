@@ -34,7 +34,7 @@ export async function GameplayPageContent({
     trip.layout_config,
     modules,
   );
-  const requiredFeature = view === "menu" ? null : VIEW_FEATURE[view];
+  const requiredFeature = view === "menu" || view === "minigame" ? null : VIEW_FEATURE[view];
   if (requiredFeature && !features.includes(requiredFeature)) {
     redirect(`/t/${tripKey}/gameplay`);
   }

@@ -3,14 +3,25 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { closedTripMutationError, getTripActionContext } from "~/lib/server/trip-action-context";
-import { parseFinanceMode, type FinanceMode } from "~/lib/finances";
+import {
+  calculateFinances,
+  getSettlementRecipientId,
+  getSettlementStatus,
+  parseFinanceMode,
+  parseSettlementStrategy,
+  type FinanceExpense,
+  type FinanceMode,
+  type SettlementStrategy,
+} from "~/lib/finances";
 
 const tripKeySchema = z.string().regex(/^[0-9a-f]{12}$/);
 const moneySchema = z.number().finite().positive().max(1_000_000);
+const currencySchema = z.enum(["PLN", "EUR", "USD", "GBP", "CHF", "CZK", "HUF"]);
 const createExpenseSchema = z.object({
   tripKey: tripKeySchema,
   payerId: z.string().uuid(),
   amount: moneySchema,
+  currency: currencySchema,
   description: z.string().trim().min(1).max(240),
   splitAmong: z.array(z.string().uuid()).min(2).max(100),
   shares: z
@@ -27,6 +38,7 @@ const reportSettlementSchema = z.object({
   tripKey: tripKeySchema,
   recipientId: z.string().uuid(),
   amount: moneySchema,
+  currency: currencySchema,
 });
 const decideSettlementSchema = z.object({
   tripKey: tripKeySchema,
@@ -62,35 +74,43 @@ async function allUsersBelongToTrip(
   return !error && data?.length === uniqueIds.length;
 }
 
-async function getTripFinanceMode(
+async function getTripFinanceConfig(
   context: NonNullable<Awaited<ReturnType<typeof getTripActionContext>>>,
-) {
+): Promise<{ mode: FinanceMode; strategy: SettlementStrategy }> {
   const { data, error } = await context.supabase
     .from("trips")
-    .select("finance_mode")
+    .select("finance_mode, settlement_strategy")
     .eq("id", context.session.tripId)
     .maybeSingle();
 
   if (error) {
     console.error("Błąd odczytu trybu rozliczeń:", error);
-    return "legacy" satisfies FinanceMode;
+    return {
+      mode: "legacy" satisfies FinanceMode,
+      strategy: "relational",
+    };
   }
 
-  return parseFinanceMode(data?.finance_mode);
+  return {
+    mode: parseFinanceMode(data?.finance_mode),
+    strategy: parseSettlementStrategy(data?.settlement_strategy),
+  };
 }
 
-function normalizeAmount(value: number, mode: FinanceMode) {
-  if (mode === "whole") {
-    return Number.isInteger(value) ? value : null;
-  }
-
+function normalizeAmount(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function normalizeShare(value: number, mode: FinanceMode) {
+  if (mode === "whole") return Number.isInteger(value) ? value : null;
+  return normalizeAmount(value);
 }
 
 export async function createExpenseAction(input: {
   tripKey: string;
   payerId: string;
   amount: number;
+  currency: string;
   description: string;
   splitAmong: string[];
   shares?: Array<{ userId: string; amount: number }>;
@@ -111,20 +131,17 @@ export async function createExpenseAction(input: {
   ) {
     return { ok: false, error: "Co najmniej jedna osoba nie należy do tego wyjazdu." };
   }
-  const financeMode = await getTripFinanceMode(context);
-  const amount = normalizeAmount(parsed.data.amount, financeMode);
-  if (amount === null) {
-    return { ok: false, error: "Ten wyjazd rozlicza wydatki wyłącznie w pełnych złotych." };
-  }
+  const { mode: financeMode } = await getTripFinanceConfig(context);
+  const amount = normalizeAmount(parsed.data.amount);
 
   const uniqueShares = new Map<string, number>();
   for (const share of parsed.data.shares) {
     if (share.userId === parsed.data.payerId || !splitAmong.includes(share.userId)) {
       return { ok: false, error: "Nieprawidłowa osoba w ręcznym podziale." };
     }
-    const normalizedShare = normalizeAmount(share.amount, financeMode);
+    const normalizedShare = normalizeShare(share.amount, financeMode);
     if (normalizedShare === null) {
-      return { ok: false, error: "Ręczny podział musi używać pełnych złotych." };
+      return { ok: false, error: "Ręczny podział musi używać pełnych jednostek waluty." };
     }
     uniqueShares.set(share.userId, (uniqueShares.get(share.userId) ?? 0) + normalizedShare);
   }
@@ -145,6 +162,7 @@ export async function createExpenseAction(input: {
     p_payer_id: parsed.data.payerId,
     p_created_by: context.participant.id,
     p_amount: amount,
+    p_currency: parsed.data.currency,
     p_description: parsed.data.description,
     p_split_among: splitAmong,
     p_shares: shares,
@@ -163,30 +181,61 @@ export async function reportSettlementAction(input: {
   tripKey: string;
   recipientId: string;
   amount: number;
+  currency: string;
 }): Promise<FinanceActionResult> {
   const parsed = reportSettlementSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Nieprawidłowa kwota lub odbiorca." };
 
   const context = await getTripActionContext(parsed.data.tripKey);
   if (!context) return { ok: false, error: "Sesja wygasła. Wejdź ponownie do wyjazdu." };
-  const closedError = closedTripMutationError(context);
-  if (closedError) return closedError;
   if (parsed.data.recipientId === context.participant.id) {
     return { ok: false, error: "Nie można zgłosić przelewu do samego siebie." };
   }
   if (!(await allUsersBelongToTrip(context, [parsed.data.recipientId]))) {
     return { ok: false, error: "Odbiorca nie należy do tego wyjazdu." };
   }
-  const financeMode = await getTripFinanceMode(context);
-  const amount = normalizeAmount(parsed.data.amount, financeMode);
-  if (amount === null) {
-    return { ok: false, error: "W tym wyjeździe przelewy zgłaszamy w pełnych złotych." };
+  const { mode: financeMode, strategy } = await getTripFinanceConfig(context);
+  const normalizedAmount = normalizeShare(parsed.data.amount, financeMode);
+  if (normalizedAmount === null) {
+    return { ok: false, error: "W tym wyjeździe przelewy zgłaszamy w pełnych jednostkach." };
+  }
+
+  const [usersResult, expensesResult] = await Promise.all([
+    context.supabase.from("users").select("id, name").eq("trip_id", context.session.tripId),
+    context.supabase
+      .from("expenses")
+      .select("*, expense_shares(user_id, amount)")
+      .eq("trip_id", context.session.tripId)
+      .eq("currency", parsed.data.currency)
+      .is("deleted_at", null),
+  ]);
+  if (usersResult.error || expensesResult.error) {
+    return { ok: false, error: "Nie udało się sprawdzić aktualnego rozliczenia." };
+  }
+  const expenses = (expensesResult.data ?? []) as FinanceExpense[];
+  const finances = calculateFinances(expenses, usersResult.data ?? [], financeMode, strategy);
+  const debt =
+    finances.transactions.find(
+      (transaction) =>
+        transaction.from === context.participant.id && transaction.to === parsed.data.recipientId,
+    )?.amount ?? 0;
+  const pendingAmount = expenses
+    .filter(
+      (expense) =>
+        getSettlementStatus(expense) === "pending" &&
+        expense.user_id === context.participant.id &&
+        getSettlementRecipientId(expense) === parsed.data.recipientId,
+    )
+    .reduce((sum, expense) => sum + Number(expense.amount), 0);
+  if (normalizedAmount > debt - pendingAmount + 0.001) {
+    return { ok: false, error: "Ta kwota przekracza pozostałą należność." };
   }
 
   const { error } = await context.supabase.from("expenses").insert({
     trip_id: context.session.tripId,
     user_id: context.participant.id,
-    amount,
+    amount: normalizedAmount,
+    currency: parsed.data.currency,
     description: "Zgłoszona wpłata",
     split_among: [parsed.data.recipientId],
     entry_type: "settlement",
@@ -211,9 +260,6 @@ export async function decideSettlementAction(input: {
 
   const context = await getTripActionContext(parsed.data.tripKey);
   if (!context) return { ok: false, error: "Sesja wygasła. Wejdź ponownie do wyjazdu." };
-  const closedError = closedTripMutationError(context);
-  if (closedError) return closedError;
-
   const { data: settlement, error: loadError } = await context.supabase
     .from("expenses")
     .select("id, entry_type, settlement_status, settlement_recipient_id")
@@ -266,6 +312,7 @@ export async function updateExpenseAction(input: {
   expenseId: string;
   payerId: string;
   amount: number;
+  currency: string;
   description: string;
   splitAmong: string[];
   shares?: Array<{ userId: string; amount: number }>;
@@ -290,20 +337,17 @@ export async function updateExpenseAction(input: {
     return { ok: false, error: "Co najmniej jedna osoba nie należy do tego wyjazdu." };
   }
 
-  const financeMode = await getTripFinanceMode(context);
-  const amount = normalizeAmount(parsed.data.amount, financeMode);
-  if (amount === null) {
-    return { ok: false, error: "Ten wyjazd rozlicza wydatki wyłącznie w pełnych złotych." };
-  }
+  const { mode: financeMode } = await getTripFinanceConfig(context);
+  const amount = normalizeAmount(parsed.data.amount);
 
   const uniqueShares = new Map<string, number>();
   for (const share of parsed.data.shares) {
     if (share.userId === parsed.data.payerId || !splitAmong.includes(share.userId)) {
       return { ok: false, error: "Nieprawidłowa osoba w ręcznym podziale." };
     }
-    const normalizedShare = normalizeAmount(share.amount, financeMode);
+    const normalizedShare = normalizeShare(share.amount, financeMode);
     if (normalizedShare === null) {
-      return { ok: false, error: "Ręczny podział musi używać pełnych złotych." };
+      return { ok: false, error: "Ręczny podział musi używać pełnych jednostek waluty." };
     }
     uniqueShares.set(share.userId, (uniqueShares.get(share.userId) ?? 0) + normalizedShare);
   }
@@ -326,6 +370,7 @@ export async function updateExpenseAction(input: {
     p_changed_by: context.participant.id,
     p_payer_id: parsed.data.payerId,
     p_amount: amount,
+    p_currency: parsed.data.currency,
     p_description: parsed.data.description,
     p_split_among: splitAmong,
     p_shares: shares,
