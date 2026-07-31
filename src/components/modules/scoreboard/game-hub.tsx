@@ -17,6 +17,7 @@ import {
   type GameplayActionResult,
 } from "~/app/actions/gameplay";
 import { runClientAction } from "~/lib/client-action";
+import {cn} from "~/lib/utils";
 import { useTripRoute } from "~/providers/trip-route-provider";
 import type { Database } from "~/types/database";
 
