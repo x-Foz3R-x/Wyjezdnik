@@ -2,11 +2,16 @@ import { notFound, redirect } from "next/navigation";
 import { Dashboard } from "~/components/modules/hub/dashboard";
 import { getTripByUrlKey, getTripParticipant, getTripPlaylists } from "~/lib/server/trips";
 import { getTripSession } from "~/lib/server/trip-session";
-import { getAutomaticDashboardWidgets, parseTripModules } from "~/lib/trip-config";
+import {
+  getAutomaticDashboardWidgets,
+  parseGameplayDashboardWidgets,
+  parseTripModules,
+} from "~/lib/trip-config";
 import { getDashboardInsights } from "~/lib/server/dashboard";
-import { parseFinanceMode } from "~/lib/finances";
+import { parseFinanceMode, parseSettlementStrategy } from "~/lib/finances";
 import { createServerSupabaseClient } from "~/lib/supabase/server";
 import { getPackingPresetItems, parsePackingPresetKeys } from "~/lib/packing";
+import { parseCurrencyCode } from "~/lib/currencies";
 
 export default async function TripDashboardPage({
   params,
@@ -26,6 +31,13 @@ export default async function TripDashboardPage({
 
   const modules = parseTripModules(trip.modules);
   const financeMode = parseFinanceMode(trip.finance_mode);
+  const settlementStrategy = parseSettlementStrategy(trip.settlement_strategy);
+  const defaultCurrency = parseCurrencyCode(trip.default_currency);
+  const gameplayWidgets = parseGameplayDashboardWidgets(
+    trip.dashboard_widgets,
+    trip.layout_config,
+    modules,
+  );
   const supabase = createServerSupabaseClient();
   const [
     playlists,
@@ -38,7 +50,11 @@ export default async function TripDashboardPage({
     getTripPlaylists(trip.id, trip.playlist_url ?? null),
     getDashboardInsights({
       tripId: trip.id,
+      userId: participant.id,
       modules,
+      financeMode,
+      settlementStrategy,
+      currency: defaultCurrency,
     }),
     supabase
       .from("packing_item_states")
@@ -64,6 +80,7 @@ export default async function TripDashboardPage({
     modules,
     hasDestination: Boolean(trip.destination_name || trip.destination_address),
     hasPlaylists: playlists.length > 0,
+    gameplayWidgets,
   });
 
   return (
@@ -84,6 +101,7 @@ export default async function TripDashboardPage({
       playlists={playlists}
       modules={modules}
       financeMode={financeMode}
+      currency={defaultCurrency}
       dashboardWidgets={dashboardWidgets}
       insights={insights}
       participants={(usersResult.data ?? []).map((user) => ({

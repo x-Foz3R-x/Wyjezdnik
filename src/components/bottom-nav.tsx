@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -33,7 +33,7 @@ type SurfaceTone = "light" | "dark";
 const MODULE_NAV_ITEMS: Record<TripNavigationKey, NavigationItem> = {
   schedule: { name: "Plan", suffix: "/schedule", icon: CalendarDays },
   shopping: { name: "Zakupy", suffix: "/shopping", icon: ShoppingBasket },
-  scoreboard: { name: "Rozgrywka", suffix: "/gameplay", icon: Gamepad2 },
+  scoreboard: { name: "Rozrywka", suffix: "/gameplay", icon: Gamepad2 },
   finances: { name: "Rozliczenia", suffix: "/finances", icon: ReceiptText },
 };
 
@@ -108,12 +108,14 @@ export function BottomNav() {
   const [optimisticIndex, setOptimisticIndex] = useState<number | null>(null);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
-  const primaryItems = layout.navigation.slice(0, 3).map((key) => MODULE_NAV_ITEMS[key]);
-  const navItems: NavigationItem[] = [
-    { name: "Baza", suffix: "", icon: Home },
-    ...primaryItems,
-    { name: "Więcej", suffix: "/more", icon: Menu, isMore: true },
-  ];
+  const navItems = useMemo<NavigationItem[]>(() => {
+    const primaryItems = layout.navigation.slice(0, 3).map((key) => MODULE_NAV_ITEMS[key]);
+    return [
+      { name: "Baza", suffix: "", icon: Home },
+      ...primaryItems,
+      { name: "Więcej", suffix: "/more", icon: Menu, isMore: true },
+    ];
+  }, [layout.navigation]);
   const moreIsActive =
     pathname === `${basePath}/more` ||
     pathname === `${basePath}/settings` ||
@@ -132,7 +134,7 @@ export function BottomNav() {
     for (const item of navItems) {
       if (!item.isMore) router.prefetch(`${basePath}${item.suffix}`);
     }
-  }, [basePath, layout.navigation, router]);
+  }, [basePath, navItems, router]);
 
   useEffect(() => {
     setPendingHref(null);

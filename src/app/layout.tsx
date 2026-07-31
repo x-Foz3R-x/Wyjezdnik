@@ -10,6 +10,7 @@ import {
 import type { Viewport } from "next";
 import { Suspense } from "react";
 import { NavigationFeedback } from "~/components/navigation-feedback";
+import { PwaProvider } from "~/components/pwa/pwa-provider";
 import { MotionProvider } from "~/providers/motion-provider";
 
 const fontHeading = Bricolage_Grotesque({
@@ -34,9 +35,23 @@ const fontNote = Architects_Daughter({
 });
 
 export const metadata: Metadata = {
+  applicationName: "Wyjezdnik",
   title: "Wyjezdnik",
   description: "Baza wyjazdu i organizacja w jednym miejscu.",
-  icons: { icon: "/favicon.svg" },
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/favicon.png", sizes: "512x512", type: "image/png" }],
+  },
+  formatDetection: { telephone: false },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Wyjezdnik",
+  },
 };
 
 export const viewport: Viewport = {
@@ -63,12 +78,14 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <div className="via-theme-bg/50 to-theme-bg absolute inset-0 bg-linear-to-b from-transparent" />
         </div>
 
-        <MotionProvider>
-          <Suspense fallback={null}>
-            <NavigationFeedback />
-          </Suspense>
-          <main className="relative z-10 mx-auto min-h-dvh max-w-md">{children}</main>
-        </MotionProvider>
+        <PwaProvider>
+          <MotionProvider>
+            <Suspense fallback={null}>
+              <NavigationFeedback />
+            </Suspense>
+            <main className="relative z-10 mx-auto min-h-dvh max-w-md">{children}</main>
+          </MotionProvider>
+        </PwaProvider>
       </body>
     </html>
   );

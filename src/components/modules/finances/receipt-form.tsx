@@ -10,12 +10,14 @@ import { createExpenseAction, updateExpenseAction } from "~/app/actions/finances
 import {
   formatFinanceAmount,
   getExplicitExpenseShares,
+  getEqualExpenseParticipantShares,
   getFinanceModeLabel,
   type FinanceExpense,
   type FinanceMode,
 } from "~/lib/finances";
 import { cn } from "~/lib/utils";
 import { runClientAction } from "~/lib/client-action";
+import { CURRENCIES, getCurrency, parseCurrencyCode, type CurrencyCode } from "~/lib/currencies";
 
 type User = Pick<Database["public"]["Tables"]["users"]["Row"], "id" | "name">;
 type SplitMode = "equal" | "manual";
@@ -33,13 +35,16 @@ export const ExpenseForm = memo(function ExpenseForm({
   onSuccess,
   expense,
 }: ExpenseFormProps) {
-  const { urlKey, financeMode } = useTripRoute();
+  const { urlKey, financeMode, defaultCurrency } = useTripRoute();
   const initialExplicitShares = expense ? getExplicitExpenseShares(expense) : [];
   const [description, setDescription] = useState(expense?.description ?? "");
   const [amountInput, setAmountInput] = useState(
     expense ? formatMoneyInput(Number(expense.amount), financeMode) : "",
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [currency, setCurrency] = useState<CurrencyCode>(
+    expense ? parseCurrencyCode(expense.currency) : defaultCurrency,
+  );
   const [payerId, setPayerId] = useState(expense?.user_id ?? activeUserId);
   const [splitMode, setSplitMode] = useState<SplitMode>(
     initialExplicitShares.length > 0 ? "manual" : "equal",
@@ -68,10 +73,7 @@ export const ExpenseForm = memo(function ExpenseForm({
   }, [payerId]);
 
   const parsedAmount = parseMoneyInput(amountInput);
-  const isAmountValid =
-    parsedAmount !== null &&
-    parsedAmount > 0 &&
-    (financeMode !== "whole" || Number.isInteger(parsedAmount));
+  const isAmountValid = parsedAmount !== null && parsedAmount > 0;
   const equalParticipants = splitAmong.filter((id) => id !== payerId);
   const parsedManualShares = useMemo(
     () =>
@@ -86,6 +88,13 @@ export const ExpenseForm = memo(function ExpenseForm({
   );
   const manualTotal = parsedManualShares.reduce((sum, share) => sum + share.amount, 0);
   const payerPart = isAmountValid ? parsedAmount - manualTotal : 0;
+  const equalShares = useMemo(
+    () =>
+      parsedAmount !== null && parsedAmount > 0
+        ? getEqualExpenseParticipantShares(parsedAmount, splitAmong, payerId, financeMode)
+        : [],
+    [financeMode, parsedAmount, payerId, splitAmong],
+  );
   const areManualSharesValid =
     parsedAmount !== null &&
     parsedManualShares.length > 0 &&
@@ -114,6 +123,7 @@ export const ExpenseForm = memo(function ExpenseForm({
       tripKey: urlKey,
       payerId,
       amount: parsedAmount,
+      currency,
       description: description.trim(),
       splitAmong: participants,
       shares,
@@ -193,27 +203,42 @@ export const ExpenseForm = memo(function ExpenseForm({
             <Input
               label="Kwota rachunku"
               type="text"
-              inputMode={financeMode === "whole" ? "numeric" : "decimal"}
+              inputMode="decimal"
               value={amountInput}
-              placeholder={financeMode === "whole" ? "0" : "0,00"}
+              placeholder="0,00"
               onChange={(event) =>
-                setAmountInput((current) =>
-                  normalizeMoneyInput(event.target.value, financeMode, current),
-                )
+                setAmountInput((current) => normalizeMoneyInput(event.target.value, true, current))
               }
               className={{
                 input:
-                  "bg-theme-bg text-theme-text placeholder:text-theme-muted/45 focus:border-theme-primary border-theme-border pr-16 font-mono font-bold",
+                  "bg-theme-bg text-theme-text placeholder:text-theme-muted/45 focus:border-theme-primary border-theme-border pr-20 font-mono font-bold",
                 label: "font-mono",
               }}
             />
-            <span className="text-theme-primary pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-xs font-bold">
-              PLN
-            </span>
+            <label className="absolute top-1/2 right-3 w-[4.5rem] -translate-y-1/2">
+              <span className="sr-only">Waluta wydatku</span>
+              <select
+                value={currency}
+                onChange={(event) => setCurrency(event.target.value as CurrencyCode)}
+                className="text-theme-primary h-10 w-full appearance-none bg-transparent py-0 pr-6 pl-2 text-right text-xs font-black outline-hidden"
+                aria-label="Waluta wydatku"
+              >
+                {CURRENCIES.map((item) => (
+                  <option key={item.code} value={item.code}>
+                    {item.code}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                size={14}
+                className="text-theme-primary pointer-events-none absolute top-1/2 right-1 -translate-y-1/2"
+              />
+            </label>
           </div>
           {financeMode === "whole" && (
             <p className="text-theme-muted mt-1 text-[10px]">
-              Ten wyjazd używa wyłącznie rozliczeń całkowitych bez groszy.
+              Rachunek może zawierać część dziesiętną. Udziały innych osób zostaną normalnie
+              zaokrąglone do pełnej jednostki, a reszta zostanie po stronie płatnika.
             </p>
           )}
         </div>
@@ -307,6 +332,38 @@ export const ExpenseForm = memo(function ExpenseForm({
                   );
                 })}
               </div>
+              {isAmountValid && splitAmong.length > 1 && (
+                <div className="border-theme-border divide-theme-border mt-3 divide-y overflow-hidden rounded-xl border">
+                  {equalShares.map((share) => {
+                    const user = users.find((candidate) => candidate.id === share.userId);
+                    const isPayer = share.userId === payerId;
+                    return (
+                      <div
+                        key={share.userId}
+                        className="flex min-h-12 items-center justify-between gap-3 px-3"
+                      >
+                        <span className="text-theme-text min-w-0 flex-1 truncate text-sm font-bold">
+                          {user?.name ?? "Nieznany"}
+                          {isPayer && (
+                            <span className="text-theme-muted ml-1 text-[9px] uppercase">
+                              · płatnik
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-theme-primary text-sm font-black">
+                          {formatFinanceAmount(share.amount, financeMode, { currency })}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {isAmountValid && splitAmong.length > 1 && (
+                <p className="text-theme-muted mt-2 text-[10px] leading-relaxed">
+                  To są części rachunku przypisane każdej osobie. Płatnik odzyskuje udziały
+                  pozostałych osób, a jego własna część nie tworzy długu.
+                </p>
+              )}
             </div>
           ) : (
             <div className="mt-3">
@@ -315,33 +372,55 @@ export const ExpenseForm = memo(function ExpenseForm({
                 pozostaje po stronie płatnika.
               </p>
               <div className="border-theme-border divide-theme-border divide-y overflow-hidden rounded-xl border">
-                {users
-                  .filter((user) => user.id !== payerId)
-                  .map((user) => (
-                    <label key={user.id} className="flex min-h-13 items-center gap-3 px-3">
+                {users.map((user) => {
+                  const isPayer = user.id === payerId;
+                  return (
+                    <label
+                      key={user.id}
+                      className={cn(
+                        "flex min-h-13 items-center gap-3 px-3",
+                        isPayer && "bg-theme-primary/6",
+                      )}
+                    >
                       <span className="text-theme-text min-w-0 flex-1 truncate text-sm font-bold">
                         {user.name}
+                        {isPayer && (
+                          <span className="text-theme-muted block text-[9px] uppercase">
+                            Płatnik · kwota wynika z reszty rachunku
+                          </span>
+                        )}
                       </span>
                       <input
                         type="text"
                         inputMode={financeMode === "whole" ? "numeric" : "decimal"}
-                        value={manualShares[user.id] ?? ""}
+                        disabled={isPayer}
+                        value={
+                          isPayer
+                            ? isAmountValid
+                              ? formatMoneyInput(Math.max(0, payerPart), financeMode)
+                              : ""
+                            : (manualShares[user.id] ?? "")
+                        }
                         placeholder="0"
                         onChange={(event) =>
+                          !isPayer &&
                           setManualShares((current) => ({
                             ...current,
                             [user.id]: normalizeMoneyInput(
                               event.target.value,
-                              financeMode,
+                              financeMode !== "whole",
                               current[user.id] ?? "",
                             ),
                           }))
                         }
-                        className="text-theme-text placeholder:text-theme-muted/40 h-10 w-24 bg-transparent text-right font-mono font-bold outline-hidden"
+                        className="text-theme-text placeholder:text-theme-muted/40 disabled:text-theme-primary h-10 w-24 bg-transparent text-right font-mono font-bold outline-hidden"
                       />
-                      <span className="text-theme-muted text-xs">zł</span>
+                      <span className="text-theme-muted text-xs">
+                        {getCurrency(currency).symbol}
+                      </span>
                     </label>
-                  ))}
+                  );
+                })}
               </div>
 
               {isAmountValid && (
@@ -354,7 +433,7 @@ export const ExpenseForm = memo(function ExpenseForm({
                   <span>Zostaje po stronie płatnika</span>
                   <strong>
                     {formatFinanceAmount(payerPart, financeMode, {
-                      currency: true,
+                      currency,
                     })}
                   </strong>
                 </div>
@@ -418,10 +497,10 @@ function formatMoneyInput(value: number, mode: FinanceMode) {
   return String(value).replace(".", ",");
 }
 
-function normalizeMoneyInput(value: string, mode: FinanceMode, previous: string) {
+function normalizeMoneyInput(value: string, allowDecimals: boolean, previous: string) {
   const compact = value.replace(/\s/g, "");
 
-  if (mode === "whole") {
+  if (!allowDecimals) {
     return compact.replace(/\D/g, "");
   }
 

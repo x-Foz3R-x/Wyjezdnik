@@ -52,7 +52,7 @@ export function GameplayWidget({ insight }: { insight: DashboardInsights["scoreb
         <div className="flex items-center justify-between gap-3">
           <span className="text-theme-primary flex items-center gap-2 text-[10px] font-bold tracking-[0.14em] uppercase">
             {insight.leader ? <Trophy size={17} /> : <Sparkles size={17} />}
-            Rozgrywka
+            Rozrywka
           </span>
           <ChevronRight className="text-theme-muted" size={18} />
         </div>
@@ -65,7 +65,7 @@ export function GameplayWidget({ insight }: { insight: DashboardInsights["scoreb
               ? `${insight.leader.score} pkt · ${insight.activeChallenges} aktywnych wyzwań`
               : insight.activeChallenges > 0
                 ? `${insight.activeChallenges} wyzwań czeka na ekipę`
-                : "Wszystkie elementy Rozgrywki są w jednym miejscu"}
+                : "Wszystkie elementy Rozrywki są w jednym miejscu"}
           </p>
         </div>
       </Link>
@@ -86,7 +86,7 @@ export function GameplayWidget({ insight }: { insight: DashboardInsights["scoreb
         <Link
           href={`/t/${urlKey}/gameplay/polls`}
           className="text-theme-muted flex size-10 shrink-0 items-center justify-center rounded-full"
-          aria-label="Otwórz całą Rozgrywkę"
+          aria-label="Otwórz całą Rozrywkę"
         >
           <ChevronRight size={18} />
         </Link>

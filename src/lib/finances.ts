@@ -1,4 +1,5 @@
 import type { Database } from "~/types/database";
+import { getCurrency, type CurrencyCode } from "~/lib/currencies";
 
 export type FinanceShare = Pick<
   Database["public"]["Tables"]["expense_shares"]["Row"],
@@ -30,7 +31,7 @@ export function parseFinanceMode(value: unknown): FinanceMode {
 }
 
 export function getFinanceModeLabel(mode: FinanceMode) {
-  if (mode === "whole") return "Pełne złotówki";
+  if (mode === "whole") return "Pełne jednostki";
   if (mode === "precise") return "Dokładnie do grosza";
   return "Dotychczasowe rozliczenie";
 }
@@ -46,16 +47,20 @@ export function getSettlementStrategyLabel(strategy: SettlementStrategy) {
 export function formatFinanceAmount(
   value: number,
   mode: FinanceMode,
-  options: { currency?: boolean; sign?: boolean } = {},
+  options: { currency?: CurrencyCode | true; sign?: boolean } = {},
 ) {
-  const normalizedValue = Math.abs(value) < (mode === "whole" ? 0.5 : 0.005) ? 0 : value;
+  const normalizedValue = Math.abs(value) < 0.005 ? 0 : value;
   const sign = options.sign && normalizedValue !== 0 ? (normalizedValue > 0 ? "+" : "−") : "";
+  const fractionDigits = mode === "whole" && Number.isInteger(normalizedValue) ? 0 : 2;
   const formatted = Math.abs(normalizedValue).toLocaleString("pl-PL", {
-    minimumFractionDigits: mode === "whole" ? 0 : 2,
-    maximumFractionDigits: mode === "whole" ? 0 : 2,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   });
+  const currency = options.currency
+    ? getCurrency(options.currency === true ? "PLN" : options.currency)
+    : null;
 
-  return `${sign}${formatted}${options.currency ? " zł" : ""}`;
+  return `${sign}${formatted}${currency ? ` ${currency.symbol}` : ""}`;
 }
 
 const isLegacySettlement = (expense: FinanceExpense): boolean =>
@@ -104,21 +109,53 @@ export function getExpenseParticipantShares(
   const participantIds = [...new Set(expense.split_among)].filter(Boolean);
   if (participantIds.length === 0) return [];
 
+  return getEqualExpenseParticipantShares(amount, participantIds, expense.user_id, mode);
+}
+
+export function getEqualExpenseParticipantShares(
+  amount: number,
+  participantIds: string[],
+  payerId: string,
+  mode: FinanceMode,
+): ExpenseParticipantShare[] {
+  const uniqueParticipantIds = [...new Set(participantIds)].filter(Boolean);
+  if (!Number.isFinite(amount) || amount <= 0 || uniqueParticipantIds.length === 0) return [];
+
   if (mode === "legacy") {
-    return participantIds.map((userId) => ({
+    return uniqueParticipantIds.map((userId) => ({
       userId,
-      amount: roundMoney(amount / participantIds.length),
+      amount: roundMoney(amount / uniqueParticipantIds.length),
     }));
   }
 
-  const factor = mode === "whole" ? 1 : 100;
-  const amountInUnits = Math.round(amount * factor);
-  const equalShare = Math.floor(amountInUnits / participantIds.length);
-  const payerRemainder = amountInUnits - equalShare * participantIds.length;
+  if (mode === "whole") {
+    const roundedShare = Math.round(amount / uniqueParticipantIds.length);
+    let remainingWholeUnits = Math.floor(amount);
+    const shares = uniqueParticipantIds
+      .filter((userId) => userId !== payerId)
+      .map((userId) => {
+        const share = Math.max(0, Math.min(roundedShare, remainingWholeUnits));
+        remainingWholeUnits -= share;
+        return { userId, amount: share };
+      });
+    const othersTotal = shares.reduce((sum, share) => sum + share.amount, 0);
+    const payerShare = Math.max(0, roundMoney(amount - othersTotal));
 
-  return participantIds.map((userId) => ({
+    return uniqueParticipantIds.map((userId) =>
+      userId === payerId
+        ? { userId, amount: payerShare }
+        : (shares.find((share) => share.userId === userId) ?? { userId, amount: 0 }),
+    );
+  }
+
+  const factor = 100;
+  const amountInUnits = Math.round(amount * factor);
+  const equalShare = Math.floor(amountInUnits / uniqueParticipantIds.length);
+  const payerRemainder = amountInUnits - equalShare * uniqueParticipantIds.length;
+
+  return uniqueParticipantIds.map((userId) => ({
     userId,
-    amount: (equalShare + (userId === expense.user_id ? payerRemainder : 0)) / factor,
+    amount: (equalShare + (userId === payerId ? payerRemainder : 0)) / factor,
   }));
 }
 
@@ -195,11 +232,10 @@ function calculateGlobalFinances(
     const participants = [...new Set(expense.split_among)].filter((id) => participantIds.has(id));
     if (participants.length === 0) continue;
 
-    const equalShare = Math.floor(amountInUnits / participants.length);
-    if (equalShare <= 0) continue;
-
-    for (const participantId of participants) {
-      addObligation(expense.user_id, participantId, equalShare);
+    const shares = getEqualExpenseParticipantShares(amount, participants, expense.user_id, mode);
+    for (const share of shares) {
+      if (share.userId === expense.user_id) continue;
+      addObligation(expense.user_id, share.userId, Math.round(share.amount * factor));
     }
   }
 

@@ -6,6 +6,7 @@ const LEGACY_VIEW_ROUTES = {
   challenges: "challenges",
   polls: "polls",
   wheel: "wheel",
+  minigame: "minigame",
 } as const;
 
 export default async function GameplayPage({

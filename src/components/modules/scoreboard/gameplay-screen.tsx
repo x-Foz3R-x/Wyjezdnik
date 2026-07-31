@@ -5,6 +5,7 @@ import {
   Dices,
   Flag,
   Gamepad2,
+  Luggage,
   Trophy,
   Users,
   Vote,
@@ -13,6 +14,7 @@ import {
 import { GameHub } from "~/components/modules/scoreboard/game-hub";
 import { TeamsChart } from "~/components/modules/scoreboard/teams-chart";
 import { WheelOfFortune } from "~/components/modules/scoreboard/wheel-of-fortune";
+import { BagRushGame } from "~/components/modules/scoreboard/bag-rush-game";
 import type { GameplayDashboardWidgetKey } from "~/lib/trip-config";
 import type { Database } from "~/types/database";
 
@@ -26,11 +28,11 @@ type Participant = Pick<
 >;
 type Team = Database["public"]["Tables"]["teams"]["Row"];
 
-export type GameplayView = "menu" | "scores" | "challenges" | "polls" | "wheel";
+export type GameplayView = "menu" | "scores" | "challenges" | "polls" | "wheel" | "minigame";
 
 type ViewCard = {
   view: Exclude<GameplayView, "menu">;
-  feature: GameplayDashboardWidgetKey;
+  feature?: GameplayDashboardWidgetKey;
   title: string;
   description: string;
   icon: LucideIcon;
@@ -38,6 +40,13 @@ type ViewCard = {
 };
 
 const VIEW_CARDS: ViewCard[] = [
+  {
+    view: "minigame",
+    title: "Łap bagaż",
+    description: "20 sekund lotniskowego refleksu.",
+    icon: Luggage,
+    tone: "bg-orange-500/14 text-orange-300",
+  },
   {
     view: "wheel",
     feature: "wheel",
@@ -99,7 +108,9 @@ export function GameplayScreen({
   teams: Team[];
   activeParticipant: Participant;
 }) {
-  const visibleCards = VIEW_CARDS.filter((card) => features.includes(card.feature));
+  const visibleCards = VIEW_CARDS.filter(
+    (card) => !card.feature || features.includes(card.feature),
+  );
   const availableViews = new Set(visibleCards.map((card) => card.view));
   const activeView = view !== "menu" && availableViews.has(view) ? view : "menu";
 
@@ -110,14 +121,14 @@ export function GameplayScreen({
           <div className="pointer-events-none absolute -top-10 right-2 size-28 rounded-full bg-fuchsia-500/10 blur-3xl" />
           <div className="pointer-events-none absolute top-12 -left-8 size-24 rounded-full bg-sky-500/10 blur-3xl" />
           <p className="text-theme-accent flex items-center gap-2 text-[10px] font-bold tracking-[0.2em] uppercase">
-            <Gamepad2 size={14} /> Stół rozgrywki
+            <Gamepad2 size={14} /> Strefa rozrywki
           </p>
           <h1 className="font-heading text-theme-text mt-2 max-w-72 text-4xl leading-[1.02] font-semibold">
             Wybierz, co dziś robimy
           </h1>
         </header>
 
-        <section className="grid grid-cols-2 gap-3" aria-label="Elementy Rozgrywki">
+        <section className="grid grid-cols-2 gap-3" aria-label="Elementy Rozrywki">
           {visibleCards.map((card) => {
             const Icon = card.icon;
             return (
@@ -158,7 +169,7 @@ export function GameplayScreen({
           href={`/t/${tripKey}/gameplay`}
           className="text-theme-muted hover:text-theme-text mb-4 inline-flex min-h-11 items-center gap-2 text-sm font-bold transition"
         >
-          <ArrowLeft size={18} /> Stół rozgrywki
+          <ArrowLeft size={18} /> Strefa rozrywki
         </Link>
         <div className="flex items-center gap-3">
           <span
@@ -170,7 +181,7 @@ export function GameplayScreen({
           </span>
           <div>
             <p className="text-theme-muted text-[10px] font-bold tracking-[0.16em] uppercase">
-              Rozgrywka
+              Rozrywka
             </p>
             <h1 className="font-heading text-theme-text text-3xl leading-tight font-semibold">
               {activeCard?.title}
@@ -222,6 +233,8 @@ export function GameplayScreen({
       )}
 
       {activeView === "wheel" && <WheelOfFortune users={participants} />}
+
+      {activeView === "minigame" && <BagRushGame />}
 
       {activeView === "scores" && (
         <div className="flex flex-col gap-4">
@@ -285,6 +298,7 @@ function getCardDetail(
   participants: Participant[],
   teams: Team[],
 ) {
+  if (view === "minigame") return "20 sekund · rekord na tym urządzeniu";
   if (view === "wheel") return `${participants.length} osób do losowania`;
   if (view === "polls") {
     const open = polls.filter((poll) => poll.status === "open").length;

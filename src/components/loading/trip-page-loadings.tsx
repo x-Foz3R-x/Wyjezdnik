@@ -54,12 +54,12 @@ export function GameplayMenuLoading() {
   return (
     <div
       className="animate-fade-in flex flex-col gap-5 pt-3"
-      aria-label="Ładowanie Rozgrywki"
+      aria-label="Ładowanie Rozrywki"
       aria-busy="true"
     >
       <header className="px-1 pt-2 pb-3">
         <p className="text-theme-accent flex items-center gap-2 text-[10px] font-bold tracking-[0.2em] uppercase">
-          <Gamepad2 size={14} /> Stół rozgrywki
+          <Gamepad2 size={14} /> Strefa rozrywki
         </p>
         <h1 className="font-heading text-theme-text mt-2 max-w-72 text-4xl leading-[1.02] font-semibold">
           Wybierz, co dziś robimy
@@ -106,7 +106,7 @@ export function GameplayDetailLoading({
     >
       <header className="px-1 pt-1">
         <div className="text-theme-muted mb-4 flex min-h-11 items-center text-sm font-bold">
-          ← Stół rozgrywki
+          ← Strefa rozrywki
         </div>
         <div className="flex items-center gap-3">
           <span className="bg-theme-primary/10 text-theme-primary flex size-12 items-center justify-center rounded-2xl">
@@ -114,7 +114,7 @@ export function GameplayDetailLoading({
           </span>
           <div>
             <p className="text-theme-muted text-[10px] font-bold tracking-[0.16em] uppercase">
-              Rozgrywka
+              Rozrywka
             </p>
             <h1 className="font-heading text-theme-text text-3xl font-semibold">{content.title}</h1>
           </div>
@@ -225,7 +225,7 @@ export function FinancesPageLoading() {
       </div>
       <div className="border-receipt-ink mt-8 border-t-3 pt-5">
         <div className="flex items-center justify-between">
-          <strong className="text-lg uppercase">Suma PLN</strong>
+          <strong className="text-lg uppercase">Suma</strong>
           <Skeleton className="bg-receipt-ink/20 h-7 w-28 rounded" />
         </div>
       </div>

@@ -3,6 +3,7 @@
 import { createContext, useContext } from "react";
 import type { FinanceMode, SettlementStrategy } from "~/lib/finances";
 import type { TripLayoutConfig, TripModules } from "~/lib/trip-config";
+import type { CurrencyCode } from "~/lib/currencies";
 
 export type TripRouteContextValue = {
   tripId: string;
@@ -13,6 +14,7 @@ export type TripRouteContextValue = {
   userAvatarUrl: string | null;
   isAdmin: boolean;
   isClosed: boolean;
+  defaultCurrency: CurrencyCode;
   financeMode: FinanceMode;
   settlementStrategy: SettlementStrategy;
   modules: TripModules;

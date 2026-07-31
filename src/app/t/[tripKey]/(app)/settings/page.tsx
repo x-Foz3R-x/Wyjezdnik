@@ -10,6 +10,8 @@ import {
 } from "~/lib/trip-config";
 import { parseFinanceMode, parseSettlementStrategy } from "~/lib/finances";
 import { parsePackingPresetKeys } from "~/lib/packing";
+import { parseCurrencyCode } from "~/lib/currencies";
+import { parseExpenseVisibility } from "~/lib/expense-visibility";
 
 export default async function SettingsPage({ params }: { params: Promise<{ tripKey: string }> }) {
   const { tripKey } = await params;
@@ -75,7 +77,13 @@ export default async function SettingsPage({ params }: { params: Promise<{ tripK
       tripKey={tripKey}
       isAdmin={participant.is_admin}
       currentUserId={participant.id}
-      initialProfile={{ name: participant.name, avatarUrl: participant.avatar_url ?? null }}
+      initialProfile={{
+        name: participant.name,
+        avatarUrl: participant.avatar_url ?? null,
+        phone: participant.phone ?? null,
+        revolutUrl: participant.revolut_url ?? null,
+        paymentNote: participant.payment_note ?? null,
+      }}
       initialTrip={{
         name: trip.name,
         startDate: trip.start_date,
@@ -84,8 +92,11 @@ export default async function SettingsPage({ params }: { params: Promise<{ tripK
         destinationAddress: trip.destination_address ?? null,
         destinationMapUrl: trip.destination_map_url ?? null,
         playlistUrl: trip.playlist_url ?? null,
+        defaultCurrency: parseCurrencyCode(trip.default_currency),
         financeMode: parseFinanceMode(trip.finance_mode),
         settlementStrategy: parseSettlementStrategy(trip.settlement_strategy),
+        expenseVisibility: parseExpenseVisibility(trip.expense_visibility),
+        expenseViewerIds: trip.expense_viewer_ids ?? [],
         playlists,
         modules,
         dashboardWidgets: parseGameplayDashboardWidgets(
