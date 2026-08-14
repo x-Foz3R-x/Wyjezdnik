@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Download, Smartphone, Trash2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
 import {
   readLocalProfile,
   removeLocalProfile,
@@ -93,26 +94,18 @@ export function LocalProfileSettings({
             Co wstawić do tego wyjazdu
           </p>
           {PROFILE_FIELDS.filter(({ key }) => Boolean(storedProfile[key])).map(({ key, label }) => (
-            <label key={key} className="flex min-h-11 cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
-                checked={selectedFields.includes(key)}
-                onChange={(event) =>
-                  setSelectedFields((current) =>
-                    event.target.checked
-                      ? [...current, key]
-                      : current.filter((field) => field !== key),
-                  )
-                }
-                className="accent-theme-primary size-4 shrink-0"
-              />
-              <span className="min-w-0 flex-1">
-                <span className="text-theme-text block text-xs font-bold">{label}</span>
-                <span className="text-theme-muted block truncate text-[11px]">
-                  {storedProfile[key]}
-                </span>
-              </span>
-            </label>
+            <Checkbox
+              key={key}
+              checked={selectedFields.includes(key)}
+              onChange={(checked) =>
+                setSelectedFields((current) =>
+                  checked ? [...current, key] : current.filter((field) => field !== key),
+                )
+              }
+              label={label}
+              description={storedProfile[key]}
+              className="min-h-11"
+            />
           ))}
           <Button
             type="button"

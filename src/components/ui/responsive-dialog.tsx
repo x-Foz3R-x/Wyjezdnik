@@ -1,9 +1,9 @@
-// src/components/responsive-dialog.tsx
 "use client";
 
 import * as React from "react";
 import { ArrowLeft } from "lucide-react";
 import { useMediaQuery } from "~/hooks/use-media-query";
+import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "~/components/ui/drawer";
+import { cn } from "~/lib/utils";
 
 interface DrawerDialogProps {
   isOpen: boolean;
@@ -37,15 +38,16 @@ export function ResponsiveDialog({
   children,
 }: DrawerDialogProps) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
+  const hasHeader = Boolean(title || description || onBack);
 
   if (isDesktop) {
     return (
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="bg-theme-bg text-theme-text border-theme-border p-5 outline-hidden sm:max-w-lg">
-          {(title ?? description ?? onBack) && (
-            <div className="flex items-start gap-3">
+        <DialogContent className="bg-theme-bg text-theme-text border-theme-border [&_[data-slot=dialog-close]]:border-theme-border [&_[data-slot=dialog-close]]:bg-theme-card-raised grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden p-0 outline-hidden sm:max-w-md [&_[data-slot=dialog-close]]:border [&_[data-slot=dialog-close]]:shadow-sm">
+          {hasHeader && (
+            <div className="flex items-start gap-3 px-5 pt-5 pr-14">
               {onBack && <BackButton onClick={onBack} />}
-              {(title ?? description) && (
+              {(title || description) && (
                 <DialogHeader className="min-w-0 flex-1">
                   {title && <DialogTitle>{title}</DialogTitle>}
                   {description && <DialogDescription>{description}</DialogDescription>}
@@ -53,7 +55,14 @@ export function ResponsiveDialog({
               )}
             </div>
           )}
-          {children}
+          <div
+            className={cn(
+              "min-h-0 overflow-y-auto overscroll-contain px-5 pb-5",
+              hasHeader ? "pt-5" : "pt-14",
+            )}
+          >
+            {children}
+          </div>
         </DialogContent>
       </Dialog>
     );
@@ -68,13 +77,11 @@ export function ResponsiveDialog({
       direction="bottom"
     >
       <DrawerContent className="bg-theme-bg pb-safe border-theme-border text-theme-text border-t outline-hidden">
-        <div className="" />
-
-        {(title ?? description ?? onBack) && (
+        {hasHeader && (
           <DrawerHeader className="text-left">
             <div className="flex items-start gap-3">
               {onBack && <BackButton onClick={onBack} />}
-              {(title ?? description) && (
+              {(title || description) && (
                 <div className="min-w-0 flex-1">
                   {title && <DrawerTitle>{title}</DrawerTitle>}
                   {description && <DrawerDescription>{description}</DrawerDescription>}
@@ -91,13 +98,15 @@ export function ResponsiveDialog({
 
 function BackButton({ onClick }: { onClick: () => void }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="icon"
       onClick={onClick}
-      className="border-theme-border text-theme-muted hover:text-theme-text flex size-11 shrink-0 items-center justify-center rounded-full border transition"
+      className="text-theme-muted hover:text-theme-text shrink-0"
       aria-label="Wróć"
     >
       <ArrowLeft size={19} />
-    </button>
+    </Button>
   );
 }

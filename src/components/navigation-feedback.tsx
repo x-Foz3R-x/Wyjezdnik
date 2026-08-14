@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { NAVIGATION_START_EVENT } from "~/lib/navigation-feedback";
+import { announceNavigationStart, NAVIGATION_START_EVENT } from "~/lib/navigation-feedback";
 
 const MAX_PENDING_TIME = 15_000;
 
@@ -58,16 +58,22 @@ export function NavigationFeedback() {
 
       const current = `${window.location.pathname}${window.location.search}`;
       const next = `${destination.pathname}${destination.search}`;
-      if (current !== next) start();
+      if (current !== next) {
+        window.queueMicrotask(() => announceNavigationStart(next));
+      }
+    };
+
+    const handlePopState = () => {
+      announceNavigationStart(`${window.location.pathname}${window.location.search}`);
     };
 
     window.addEventListener(NAVIGATION_START_EVENT, start);
-    window.addEventListener("popstate", start);
+    window.addEventListener("popstate", handlePopState);
     document.addEventListener("click", handleClick, true);
 
     return () => {
       window.removeEventListener(NAVIGATION_START_EVENT, start);
-      window.removeEventListener("popstate", start);
+      window.removeEventListener("popstate", handlePopState);
       document.removeEventListener("click", handleClick, true);
       if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
     };

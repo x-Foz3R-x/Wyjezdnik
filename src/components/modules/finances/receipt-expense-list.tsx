@@ -9,7 +9,7 @@ import {
   type FinanceExpense,
   type FinanceMode,
 } from "~/lib/finances";
-import { ResponsiveDialog } from "~/components/responsive-dialog";
+import { ResponsiveDialog } from "~/components/ui/responsive-dialog";
 import { Button } from "~/components/ui/button";
 import { ExpenseForm } from "~/components/modules/finances/receipt-form";
 import { deleteExpenseAction } from "~/app/actions/finances";

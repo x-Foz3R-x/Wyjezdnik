@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Music2, Plus, Trash2 } from "lucide-react";
 import { deletePlaylistAction, savePlaylistAction } from "~/app/actions/playlists";
-import { ResponsiveDialog } from "~/components/responsive-dialog";
+import { ResponsiveDialog } from "~/components/ui/responsive-dialog";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { runClientAction } from "~/lib/client-action";

@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import type { TripFormData } from "./index";
 
 interface Props {
@@ -60,18 +67,22 @@ export function StepTeams({ data, setData, onBack, onSubmit, isSubmitting }: Pro
           {allUsers.map((user) => (
             <div key={user} className="flex items-center justify-between gap-3">
               <span className="text-sm font-bold">{user}</span>
-              <select
-                value={data.memberAssignments[user] || ""}
-                onChange={(e) => assignUser(user, e.target.value)}
-                className="bg-theme-bg text-theme-text border-theme-border rounded-md border px-2 py-1 text-xs outline-hidden"
+              <Select
+                value={data.memberAssignments[user] || "none"}
+                onValueChange={(value) => assignUser(user, value === "none" ? "" : value)}
               >
-                <option value="">Brak drużyny</option>
-                {data.teams.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger size="sm" className="bg-theme-bg min-w-32">
+                  <SelectValue placeholder="Brak drużyny" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Brak drużyny</SelectItem>
+                  {data.teams.map((team) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           ))}
         </div>

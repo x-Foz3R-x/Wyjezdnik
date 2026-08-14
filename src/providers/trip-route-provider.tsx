@@ -4,6 +4,7 @@ import { createContext, useContext } from "react";
 import type { FinanceMode, SettlementStrategy } from "~/lib/finances";
 import type { TripLayoutConfig, TripModules } from "~/lib/trip-config";
 import type { CurrencyCode } from "~/lib/currencies";
+import type { TripThemeKey } from "~/lib/themes";
 
 export type TripRouteContextValue = {
   tripId: string;
@@ -14,6 +15,7 @@ export type TripRouteContextValue = {
   userAvatarUrl: string | null;
   isAdmin: boolean;
   isClosed: boolean;
+  theme: TripThemeKey;
   defaultCurrency: CurrencyCode;
   financeMode: FinanceMode;
   settlementStrategy: SettlementStrategy;

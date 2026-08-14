@@ -121,7 +121,12 @@
     --theme-success: var(--semantic-success);
     --theme-info: var(--semantic-info);
     --theme-danger: var(--semantic-danger);
-
+    --theme-radius-card: 1rem;
+    --theme-radius-control: 0.75rem;
+    --theme-shadow-card: 0 10px 32px rgb(0 0 0 / 0.12);
+    --theme-heading-tracking: normal;
+    --theme-font-heading: var(--font-heading);
+    --theme-font-body: var(--font-body);
     /* Mapowanie dla komponentów shadcn/radix */
     --background: var(--theme-bg);
     --foreground: var(--theme-text);
@@ -177,6 +182,106 @@
 }
 
 @layer components {
+  .trip-theme-shell {
+    position: relative;
+    isolation: isolate;
+    min-width: 0;
+    color: var(--theme-text);
+    background: transparent;
+    font-family: var(--theme-font-body);
+  }
+
+  .trip-theme-shell .font-heading {
+    font-family: var(--theme-font-heading);
+    letter-spacing: var(--theme-heading-tracking);
+  }
+
+  .trip-theme-shell::before,
+  .trip-theme-shell::after {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    content: "";
+  }
+
+  [data-trip-theme="bieszczady"] {
+    --theme-bg: #0b1915;
+    --theme-card: #13271f;
+    --theme-card-raised: #1a3329;
+    --theme-border: #345244;
+    --theme-primary: #d99a4e;
+    --theme-primary-hover: #ebb269;
+    --theme-primary-active: #b97835;
+    --theme-primary-foreground: #102018;
+    --theme-accent: #83b8a0;
+    --theme-accent-foreground: #0b1915;
+    --theme-text: #f2ead7;
+    --theme-muted: #a3b3a5;
+    --theme-success: #8bc093;
+    --theme-info: #7fb5b2;
+    --theme-danger: #df7864;
+    --theme-radius-card: 1.25rem;
+    --theme-radius-control: 0.875rem;
+    --theme-shadow-card: 0 18px 44px rgb(2 10 7 / 0.28);
+    --theme-heading-tracking: 0.015em;
+    --background: var(--theme-bg);
+    --foreground: var(--theme-text);
+    --card: var(--theme-card);
+    --card-foreground: var(--theme-text);
+    --popover: var(--theme-card-raised);
+    --popover-foreground: var(--theme-text);
+    --primary: var(--theme-primary);
+    --primary-foreground: var(--theme-primary-foreground);
+    --secondary: var(--theme-card-raised);
+    --secondary-foreground: var(--theme-text);
+    --muted: var(--theme-card-raised);
+    --muted-foreground: var(--theme-muted);
+    --accent: var(--theme-accent);
+    --accent-foreground: var(--theme-accent-foreground);
+    --destructive: var(--theme-danger);
+    --border: var(--theme-border);
+    --input: var(--theme-border);
+    --ring: var(--theme-primary);
+  }
+
+  html[data-trip-theme="bieszczady"] body {
+    background:
+      radial-gradient(circle at 84% 9%, rgb(217 154 78 / 0.15), transparent 25%),
+      radial-gradient(circle at 12% 35%, rgb(131 184 160 / 0.12), transparent 32%),
+      linear-gradient(180deg, #10241d 0%, #0b1915 52%, #07110e 100%);
+    background-attachment: fixed;
+  }
+
+  [data-trip-theme="bieszczady"]::before {
+    inset: auto 0 0;
+    height: 42dvh;
+    opacity: 0.34;
+    background: linear-gradient(180deg, #19392d 0%, #07110e 84%);
+    clip-path: polygon(
+      0 64%,
+      11% 47%,
+      23% 61%,
+      37% 31%,
+      48% 55%,
+      62% 24%,
+      76% 58%,
+      89% 39%,
+      100% 57%,
+      100% 100%,
+      0 100%
+    );
+  }
+
+  [data-trip-theme="bieszczady"]::after {
+    opacity: 0.35;
+    background-image:
+      radial-gradient(circle at 18% 13%, rgb(242 234 215 / 0.65) 0 1px, transparent 1.4px),
+      radial-gradient(circle at 71% 19%, rgb(242 234 215 / 0.45) 0 1px, transparent 1.3px),
+      radial-gradient(circle at 88% 31%, rgb(242 234 215 / 0.38) 0 1px, transparent 1.4px),
+      linear-gradient(105deg, transparent 12%, rgb(131 184 160 / 0.08) 48%, transparent 72%);
+  }
+
   .thermal-receipt {
     position: relative;
     background:
@@ -252,6 +357,20 @@
   .shopping-notebook::after {
     bottom: -4px;
     transform: rotate(180deg);
+  }
+
+  [data-trip-theme="bieszczady"] .shopping-notebook {
+    --theme-bg: #9d9573;
+    --theme-card: #d8cfad;
+    --theme-card-raised: #c2ba94;
+    --theme-border: #66715b;
+    --theme-primary: #315b45;
+    --theme-primary-hover: #3f6d55;
+    --theme-primary-active: #274c39;
+    --theme-primary-foreground: #f8f1dd;
+    --theme-text: #172219;
+    --theme-muted: #526052;
+    --theme-danger: #923e32;
   }
 
   .brand-shell {

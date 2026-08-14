@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import { CalendarIcon, RotateCcw } from "lucide-react";
 import type { DateRange } from "react-day-picker";
-import { ResponsiveDialog } from "~/components/responsive-dialog";
+import { ResponsiveDialog } from "~/components/ui/responsive-dialog";
 import { Button } from "~/components/ui/button";
 import { Calendar } from "~/components/ui/calendar";
 import { cn } from "~/lib/utils";

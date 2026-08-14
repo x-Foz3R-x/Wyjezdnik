@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, Lock, X } from "lucide-react";
-import { ResponsiveDialog } from "~/components/responsive-dialog";
+import { ResponsiveDialog } from "~/components/ui/responsive-dialog";
 import { ExpenseForm } from "~/components/modules/finances/receipt-form";
 import type { FinanceExpense, Transaction } from "~/lib/finances";
 import { Link } from "~/components/ui/link";

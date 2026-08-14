@@ -3,7 +3,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 export default function JoinTripLoading() {
   return (
     <div
-      className="flex min-h-dvh items-center justify-center px-4 py-8 pb-28"
+      className="flex min-h-dvh items-center justify-center px-4 pt-[calc(env(safe-area-inset-top)+2rem)] pb-[calc(env(safe-area-inset-bottom)+7rem)]"
       aria-label="Ładowanie uczestników wyjazdu"
       aria-busy="true"
     >

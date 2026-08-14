@@ -1,29 +1,49 @@
 // src/components/ui/checkbox.tsx
 "use client";
 
+import { useId, type ReactNode } from "react";
 import { Check } from "lucide-react";
 import { cn } from "~/lib/utils";
 
 interface CheckboxProps {
-  id: string;
+  id?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
-  label: string;
+  label?: ReactNode;
+  description?: ReactNode;
+  disabled?: boolean;
+  className?: string;
 }
 
-export function Checkbox({ id, checked, onChange, label }: CheckboxProps) {
+export function Checkbox({
+  id,
+  checked,
+  onChange,
+  label,
+  description,
+  disabled = false,
+  className,
+}: CheckboxProps) {
+  const generatedId = useId();
+  const checkboxId = id ?? generatedId;
+
   return (
     <label
-      htmlFor={id}
-      className="group flex cursor-pointer items-start gap-3 py-2 transition-all active:scale-98"
+      htmlFor={checkboxId}
+      className={cn(
+        "group flex cursor-pointer items-start gap-3 py-2 transition-all active:scale-98",
+        disabled && "cursor-not-allowed opacity-50 active:scale-100",
+        className,
+      )}
     >
       <div className="relative mt-0.5 flex shrink-0 items-center justify-center">
         <input
           type="checkbox"
-          id={id}
+          id={checkboxId}
           checked={checked}
+          disabled={disabled}
           onChange={(e) => onChange(e.target.checked)}
-          className="peer sr-only" // sr-only ukrywa domyślny kwadrat, ale zostawia go dla czytników ekranu
+          className="peer sr-only"
         />
         <div
           className={cn(
@@ -43,14 +63,16 @@ export function Checkbox({ id, checked, onChange, label }: CheckboxProps) {
           />
         </div>
       </div>
-      <span
-        className={cn(
-          "font-body text-[15px] transition-colors duration-200 select-none",
-          checked ? "text-theme-muted line-through" : "text-theme-text",
-        )}
-      >
-        {label}
-      </span>
+      {(label ?? description) && (
+        <span className="min-w-0 select-none">
+          {label && <span className="text-theme-text block text-sm font-medium">{label}</span>}
+          {description && (
+            <span className="text-theme-muted mt-0.5 block text-xs leading-relaxed">
+              {description}
+            </span>
+          )}
+        </span>
+      )}
     </label>
   );
 }

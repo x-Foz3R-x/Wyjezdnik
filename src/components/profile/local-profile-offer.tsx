@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Smartphone } from "lucide-react";
 import { updateParticipantProfileAction } from "~/app/actions/trips";
-import { ResponsiveDialog } from "~/components/responsive-dialog";
+import { ResponsiveDialog } from "~/components/ui/responsive-dialog";
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
 import { runClientAction } from "~/lib/client-action";
 import {
   getLocalProfileOfferKey,
@@ -141,29 +142,18 @@ export function LocalProfileOffer({
 
           <div className="border-theme-border divide-theme-border divide-y overflow-hidden rounded-2xl border">
             {offeredFields.map(({ key, label }) => (
-              <label
+              <Checkbox
                 key={key}
-                className="flex min-h-14 cursor-pointer items-center gap-3 px-4 py-2"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedFields.includes(key)}
-                  onChange={(event) =>
-                    setSelectedFields((current) =>
-                      event.target.checked
-                        ? [...current, key]
-                        : current.filter((field) => field !== key),
-                    )
-                  }
-                  className="accent-theme-primary size-4 shrink-0"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="text-theme-text block text-xs font-bold">{label}</span>
-                  <span className="text-theme-muted block truncate text-[11px]">
-                    {localProfile[key]}
-                  </span>
-                </span>
-              </label>
+                checked={selectedFields.includes(key)}
+                onChange={(checked) =>
+                  setSelectedFields((current) =>
+                    checked ? [...current, key] : current.filter((field) => field !== key),
+                  )
+                }
+                label={label}
+                description={localProfile[key]}
+                className="min-h-14 px-4 py-2"
+              />
             ))}
           </div>
 

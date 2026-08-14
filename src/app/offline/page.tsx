@@ -7,7 +7,7 @@ export default function OfflinePage() {
   return (
     <div
       data-offline-fallback
-      className="brand-shell flex min-h-dvh items-center px-5 py-10 text-center"
+      className="brand-shell flex min-h-dvh items-center px-5 pt-[calc(env(safe-area-inset-top)+2.5rem)] pb-[calc(env(safe-area-inset-bottom)+2.5rem)] text-center"
     >
       <div className="mx-auto flex w-full max-w-sm flex-col gap-4">
         <section className="bg-theme-card border-theme-border flex flex-col items-center gap-5 rounded-3xl border p-6 shadow-2xl">

@@ -23,7 +23,7 @@ import {
 } from "~/lib/finances";
 import { useTripRoute } from "~/providers/trip-route-provider";
 import { decideSettlementAction, reportSettlementAction } from "~/app/actions/finances";
-import { ResponsiveDialog } from "~/components/responsive-dialog";
+import { ResponsiveDialog } from "~/components/ui/responsive-dialog";
 import { runClientAction } from "~/lib/client-action";
 import type { CurrencyCode } from "~/lib/currencies";
 

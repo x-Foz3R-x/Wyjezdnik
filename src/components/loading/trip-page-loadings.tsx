@@ -1,4 +1,13 @@
-import { CalendarDays, Dices, Flag, Gamepad2, ReceiptText, Trophy, Vote } from "lucide-react";
+import {
+  CalendarDays,
+  Dices,
+  Flag,
+  Gamepad2,
+  Luggage,
+  ReceiptText,
+  Trophy,
+  Vote,
+} from "lucide-react";
 import { Skeleton } from "~/components/ui/skeleton";
 
 export function DashboardPageLoading() {
@@ -88,13 +97,14 @@ export function GameplayMenuLoading() {
 export function GameplayDetailLoading({
   view,
 }: {
-  view: "scores" | "challenges" | "polls" | "wheel";
+  view: "scores" | "challenges" | "polls" | "wheel" | "minigame";
 }) {
   const content = {
     scores: { title: "Punktacja", icon: Trophy },
     challenges: { title: "Wyzwania", icon: Flag },
     polls: { title: "Głosowania", icon: Vote },
     wheel: { title: "Koło fortuny", icon: Dices },
+    minigame: { title: "Łap bagaż", icon: Luggage },
   }[view];
   const Icon = content.icon;
 

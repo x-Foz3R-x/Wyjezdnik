@@ -3,7 +3,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 export default function CreateTripLoading() {
   return (
     <div
-      className="flex min-h-dvh w-full flex-col items-center px-4 py-6 sm:justify-center"
+      className="flex min-h-dvh w-full flex-col items-center px-4 pt-[calc(env(safe-area-inset-top)+1.5rem)] pb-[calc(env(safe-area-inset-bottom)+1.5rem)] sm:justify-center"
       aria-label="Ładowanie kreatora wyjazdu"
       aria-busy="true"
     >

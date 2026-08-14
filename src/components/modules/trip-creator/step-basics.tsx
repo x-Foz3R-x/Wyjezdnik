@@ -8,7 +8,14 @@ import {
 } from "lucide-react";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
-import { DateRangePicker } from "~/components/date-range-picker";
+import { DateRangePicker } from "~/components/ui/date-range-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import { CURRENCIES, type CurrencyCode } from "~/lib/currencies";
 import type { TripFormData } from "./index";
 
@@ -118,19 +125,23 @@ export function StepBasics({ data, setData, onNext, onCancel }: Props) {
                 </p>
               </div>
             </div>
-            <select
+            <Select
               value={data.defaultCurrency}
-              onChange={(event) =>
-                setData({ ...data, defaultCurrency: event.target.value as CurrencyCode })
+              onValueChange={(value) =>
+                setData({ ...data, defaultCurrency: value as CurrencyCode })
               }
-              className="bg-theme-card text-theme-text border-theme-border h-12 rounded-xl border px-3 text-sm"
             >
-              {CURRENCIES.map((currency) => (
-                <option key={currency.code} value={currency.code}>
-                  {currency.code} · {currency.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="bg-theme-card border-theme-border h-12 w-full rounded-[var(--theme-radius-control)] px-3">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CURRENCIES.map((currency) => (
+                  <SelectItem key={currency.code} value={currency.code}>
+                    {currency.code} · {currency.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </section>
 
           <section className="border-theme-border flex flex-col gap-3 border-t pt-4">

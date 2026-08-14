@@ -59,7 +59,7 @@ drop function if exists public.create_expense_entry(
   uuid, uuid, uuid, numeric, text, uuid[], jsonb
 );
 
-create function public.create_expense_entry(
+create or replace function public.create_expense_entry(
   p_trip_id uuid,
   p_payer_id uuid,
   p_created_by uuid,
@@ -190,7 +190,7 @@ drop function if exists public.update_expense_entry(
   uuid, uuid, uuid, uuid, numeric, text, uuid[], jsonb
 );
 
-create function public.update_expense_entry(
+create or replace function public.update_expense_entry(
   p_trip_id uuid,
   p_expense_id uuid,
   p_changed_by uuid,
