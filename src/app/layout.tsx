@@ -83,7 +83,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <Suspense fallback={null}>
               <NavigationFeedback />
             </Suspense>
-            <main className="relative z-10 mx-auto min-h-dvh max-w-md">{children}</main>
+            <main className="relative z-10 mx-auto min-h-dvh w-full max-w-md">{children}</main>
           </MotionProvider>
         </PwaProvider>
       </body>

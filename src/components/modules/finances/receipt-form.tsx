@@ -1,9 +1,16 @@
 "use client";
 
 import { memo, useEffect, useMemo, useState } from "react";
-import { Check, ChevronDown, Equal, ReceiptText, UserRound, UsersRound } from "lucide-react";
+import { Check, Equal, ReceiptText, UserRound, UsersRound } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import type { Database } from "~/types/database";
 import { useTripRoute } from "~/providers/trip-route-provider";
 import { createExpenseAction, updateExpenseAction } from "~/app/actions/finances";
@@ -157,24 +164,19 @@ export const ExpenseForm = memo(function ExpenseForm({
             <UserRound size={14} className="text-theme-primary" />
             Kto zapłacił
           </span>
-          <span className="relative">
-            <select
-              value={payerId}
-              onChange={(event) => setPayerId(event.target.value)}
-              className="bg-theme-bg text-theme-text focus:border-theme-primary border-theme-border h-12 w-full appearance-none rounded-xl border px-4 pr-11 text-sm outline-hidden"
-            >
+          <Select value={payerId} onValueChange={setPayerId}>
+            <SelectTrigger className="bg-theme-bg border-theme-border h-12 w-full rounded-[var(--theme-radius-control)] px-4">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
               {users.map((user) => (
-                <option key={user.id} value={user.id}>
+                <SelectItem key={user.id} value={user.id}>
                   {user.name}
                   {user.id === activeUserId ? " (Ty)" : ""}
-                </option>
+                </SelectItem>
               ))}
-            </select>
-            <ChevronDown
-              size={16}
-              className="text-theme-muted pointer-events-none absolute top-1/2 right-4 -translate-y-1/2"
-            />
-          </span>
+            </SelectContent>
+          </Select>
           {/* <span className="text-theme-muted text-[10px]">
             Możesz wpisać rachunek za osobę, która teraz nie może lub nie ma telefonu pod ręką.
           </span> */}
@@ -215,24 +217,26 @@ export const ExpenseForm = memo(function ExpenseForm({
                 label: "font-mono",
               }}
             />
-            <label className="absolute top-1/2 right-3 w-[4.5rem] -translate-y-1/2">
+            <label className="absolute top-1/2 right-2 w-[5rem] -translate-y-1/2">
               <span className="sr-only">Waluta wydatku</span>
-              <select
+              <Select
                 value={currency}
-                onChange={(event) => setCurrency(event.target.value as CurrencyCode)}
-                className="text-theme-primary h-10 w-full appearance-none bg-transparent py-0 pr-6 pl-2 text-right text-xs font-black outline-hidden"
-                aria-label="Waluta wydatku"
+                onValueChange={(value) => setCurrency(value as CurrencyCode)}
               >
-                {CURRENCIES.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.code}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={14}
-                className="text-theme-primary pointer-events-none absolute top-1/2 right-1 -translate-y-1/2"
-              />
+                <SelectTrigger
+                  className="text-theme-primary h-10 w-full border-0 bg-transparent px-2 text-xs font-black shadow-none focus-visible:ring-0"
+                  aria-label="Waluta wydatku"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  {CURRENCIES.map((item) => (
+                    <SelectItem key={item.code} value={item.code}>
+                      {item.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
           </div>
           {financeMode === "whole" && (

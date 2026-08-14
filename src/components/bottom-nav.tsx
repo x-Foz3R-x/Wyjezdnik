@@ -6,14 +6,13 @@ import {
   CalendarDays,
   Gamepad2,
   Home,
-  LoaderCircle,
   Menu,
   ReceiptText,
   ShoppingBasket,
   type LucideIcon,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { ResponsiveDialog } from "~/components/responsive-dialog";
+import { ResponsiveDialog } from "~/components/ui/responsive-dialog";
 import { MoreMenu } from "~/components/more-menu";
 import { MOTION_TRANSITIONS } from "~/lib/motion";
 import { announceNavigationStart } from "~/lib/navigation-feedback";
@@ -106,7 +105,6 @@ export function BottomNav() {
   const [isDragging, setIsDragging] = useState(false);
   const [isLightSurface, setIsLightSurface] = useState(false);
   const [optimisticIndex, setOptimisticIndex] = useState<number | null>(null);
-  const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   const navItems = useMemo<NavigationItem[]>(() => {
     const primaryItems = layout.navigation.slice(0, 3).map((key) => MODULE_NAV_ITEMS[key]);
@@ -137,7 +135,6 @@ export function BottomNav() {
   }, [basePath, navItems, router]);
 
   useEffect(() => {
-    setPendingHref(null);
     setOptimisticIndex(null);
   }, [pathname]);
 
@@ -221,7 +218,6 @@ export function BottomNav() {
     if (!item) return;
 
     if (item.isMore) {
-      setPendingHref(null);
       setOptimisticIndex(null);
       setIsMoreOpen(true);
       return;
@@ -229,13 +225,11 @@ export function BottomNav() {
 
     const href = `${basePath}${item.suffix}`;
     if (href === pathname) {
-      setPendingHref(null);
       setOptimisticIndex(null);
       return;
     }
     setOptimisticIndex(index);
-    setPendingHref(href);
-    announceNavigationStart();
+    announceNavigationStart(href);
     router.push(href);
   };
 
@@ -298,9 +292,7 @@ export function BottomNav() {
         />
 
         {navItems.map((item, index) => {
-          const href = `${basePath}${item.suffix}`;
           const isSelected = selectedIndex === index;
-          const isPending = pendingHref === href;
           const Icon = item.icon;
 
           return (
@@ -330,11 +322,7 @@ export function BottomNav() {
                 transition={MOTION_TRANSITIONS.quick}
                 className="flex h-6 items-center justify-center"
               >
-                {isPending ? (
-                  <LoaderCircle className="size-5.5 animate-spin" strokeWidth={2.5} />
-                ) : (
-                  <Icon className="size-5.5" strokeWidth={isSelected ? 2.5 : 2} />
-                )}
+                <Icon className="size-5.5" strokeWidth={isSelected ? 2.5 : 2} />
               </motion.span>
               <span
                 className={cn(

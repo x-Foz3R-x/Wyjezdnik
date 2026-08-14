@@ -23,7 +23,7 @@ import {
 import { TRIP_MODULES, type TripModuleKey } from "~/lib/trip-config";
 import { useTripRoute } from "~/providers/trip-route-provider";
 import { Avatar } from "~/components/ui/avatar";
-import { ResponsiveDialog } from "~/components/responsive-dialog";
+import { ResponsiveDialog } from "~/components/ui/responsive-dialog";
 import { cn } from "~/lib/utils";
 import { usePwaInstall } from "~/components/pwa/pwa-provider";
 
@@ -219,7 +219,7 @@ export function MoreMenu({ onNavigate }: { onNavigate?: () => void }) {
         </button>
       )}
 
-      <section className="bg-theme-bg border-theme-border sticky -bottom-6 z-20 -mx-6 mt-1 -mb-6 border-t px-5 pt-3 pb-2 shadow-[0_-18px_28px_var(--theme-bg)]">
+      <section className="bg-theme-bg border-theme-border sticky -bottom-6 z-20 -mx-6 mt-1 -mb-6 border-t px-5 pt-3 pb-2 shadow-[0_-18px_28px_var(--theme-bg)] md:static md:mx-0 md:mb-0 md:rounded-2xl md:border md:p-3 md:shadow-none">
         <div className={cn("grid gap-1", actionGrid)}>
           <ActionLink
             href={`/t/${urlKey}/join`}

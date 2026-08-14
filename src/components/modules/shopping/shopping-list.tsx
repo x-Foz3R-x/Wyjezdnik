@@ -16,7 +16,7 @@ import {
   deleteShoppingItemAction,
   toggleShoppingItemAction,
 } from "~/app/actions/shopping";
-import { ResponsiveDialog } from "~/components/responsive-dialog";
+import { ResponsiveDialog } from "~/components/ui/responsive-dialog";
 import { Avatar } from "~/components/ui/avatar";
 import { useTripRoute } from "~/providers/trip-route-provider";
 import type { Database } from "~/types/database";

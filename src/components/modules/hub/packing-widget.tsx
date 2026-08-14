@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Backpack, Check, ChevronRight, EyeOff, MoreHorizontal, Plus, Trash2 } from "lucide-react";
-import { ResponsiveDialog } from "~/components/responsive-dialog";
+import { ResponsiveDialog } from "~/components/ui/responsive-dialog";
 import { Button } from "~/components/ui/button";
 import {
   addPackingPersonalItemAction,

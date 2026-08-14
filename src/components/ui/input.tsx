@@ -15,8 +15,8 @@ const InputVariants = cva(
           "border-theme-border bg-theme-card focus:border-theme-primary border pt-5 pb-1 shadow-xs",
       },
       size: {
-        default: "h-12 rounded-xl px-4 text-base",
-        sm: "h-10 rounded-lg px-3 text-sm",
+        default: "h-12 rounded-[var(--theme-radius-control)] px-4 text-base",
+        sm: "h-10 rounded-[calc(var(--theme-radius-control)-0.25rem)] px-3 text-sm",
       },
     },
     defaultVariants: {

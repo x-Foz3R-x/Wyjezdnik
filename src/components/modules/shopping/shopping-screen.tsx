@@ -8,7 +8,7 @@ import {
   getShoppingItemsAction,
   updateShoppingAudienceAction,
 } from "~/app/actions/shopping";
-import { ResponsiveDialog } from "~/components/responsive-dialog";
+import { ResponsiveDialog } from "~/components/ui/responsive-dialog";
 import { ShoppingList } from "~/components/modules/shopping/shopping-list";
 import { Avatar } from "~/components/ui/avatar";
 import { Button } from "~/components/ui/button";
@@ -278,10 +278,10 @@ export function ShoppingScreen({
     <div className="animate-fade-in -mx-2 -mb-[calc(8.5rem+env(safe-area-inset-bottom))] pt-4">
       <section
         data-bottom-nav-tone="light"
-        className="shopping-notebook overflow-hidden- min-h-dvh- pt-[env(safe-area-inset-top)] pb-[calc(8.5rem+env(safe-area-inset-bottom))] shadow-none"
+        className="shopping-notebook pb-[calc(8.5rem+env(safe-area-inset-bottom))] shadow-none"
       >
         <span className="bg-theme-primary/45 absolute inset-y-0 left-6 w-px" />
-        <div className="absolute top-[calc(env(safe-area-inset-top)+1rem)] left-0 flex w-full justify-around px-8">
+        <div className="absolute top-4 left-0 flex w-full justify-around px-8">
           <span className="bg-theme-bg border-theme-border h-2 w-2 rounded-full border" />
           <span className="bg-theme-bg border-theme-border h-2 w-2 rounded-full border" />
           <span className="bg-theme-bg border-theme-border h-2 w-2 rounded-full border" />

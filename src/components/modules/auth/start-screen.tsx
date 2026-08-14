@@ -40,7 +40,7 @@ export function StartScreen({ initialError, returnTo }: StartScreenProps) {
   }, []);
 
   return (
-    <div className="animate-fade-in flex min-h-dvh flex-col items-center px-4 py-7 text-center sm:justify-center">
+    <div className="animate-fade-in flex min-h-dvh flex-col items-center px-4 pt-[calc(env(safe-area-inset-top)+1.75rem)] pb-[calc(env(safe-area-inset-bottom)+1.75rem)] text-center sm:justify-center">
       <div className="flex w-full max-w-sm flex-col items-center gap-7">
         {returnTo && (
           <Link

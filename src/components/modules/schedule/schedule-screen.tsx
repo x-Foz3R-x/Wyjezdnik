@@ -15,10 +15,11 @@ import {
   Trash2,
 } from "lucide-react";
 import { deleteScheduleItemAction, saveScheduleItemAction } from "~/app/actions/schedule";
-import { DatePicker } from "~/components/date-range-picker";
-import { ResponsiveDialog } from "~/components/responsive-dialog";
+import { DatePicker } from "~/components/ui/date-range-picker";
+import { ResponsiveDialog } from "~/components/ui/responsive-dialog";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { Textarea } from "~/components/ui/textarea";
 import type { Database } from "~/types/database";
 import { useTripRoute } from "~/providers/trip-route-provider";
 import { runClientAction } from "~/lib/client-action";
@@ -349,17 +350,14 @@ function ScheduleItemForm({
             onChange={(event) => setLocationName(event.target.value)}
             placeholder="np. Plaża miejska"
           />
-          <label className="flex flex-col gap-2">
-            <span className="text-theme-muted text-xs font-bold">Krótka notatka</span>
-            <textarea
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              rows={3}
-              maxLength={1000}
-              placeholder="Tylko jeśli trzeba coś dopowiedzieć"
-              className="bg-theme-card border-theme-border text-theme-text placeholder:text-theme-muted/60 focus:border-theme-primary resize-none rounded-xl border p-3 outline-hidden"
-            />
-          </label>
+          <Textarea
+            label="Krótka notatka"
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            rows={3}
+            maxLength={1000}
+            placeholder="Tylko jeśli trzeba coś dopowiedzieć"
+          />
         </div>
       )}
       <div className="flex gap-3 pt-1">

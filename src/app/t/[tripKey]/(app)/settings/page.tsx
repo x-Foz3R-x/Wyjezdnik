@@ -12,6 +12,7 @@ import { parseFinanceMode, parseSettlementStrategy } from "~/lib/finances";
 import { parsePackingPresetKeys } from "~/lib/packing";
 import { parseCurrencyCode } from "~/lib/currencies";
 import { parseExpenseVisibility } from "~/lib/expense-visibility";
+import { parseTripTheme } from "~/lib/themes";
 
 export default async function SettingsPage({ params }: { params: Promise<{ tripKey: string }> }) {
   const { tripKey } = await params;
@@ -93,6 +94,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ tripK
         destinationMapUrl: trip.destination_map_url ?? null,
         playlistUrl: trip.playlist_url ?? null,
         defaultCurrency: parseCurrencyCode(trip.default_currency),
+        theme: parseTripTheme(trip.theme),
         financeMode: parseFinanceMode(trip.finance_mode),
         settlementStrategy: parseSettlementStrategy(trip.settlement_strategy),
         expenseVisibility: parseExpenseVisibility(trip.expense_visibility),

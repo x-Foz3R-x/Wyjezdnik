@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronRight, UsersRound } from "lucide-react";
-import { ResponsiveDialog } from "~/components/responsive-dialog";
+import { ResponsiveDialog } from "~/components/ui/responsive-dialog";
 import { Avatar } from "~/components/ui/avatar";
 
 export type DashboardParticipant = {

@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // Zmień wersję przy każdej zmianie publicznego szkieletu PWA.
-const CACHE_NAME = "wyjezdnik-shell-v5";
+const CACHE_NAME = "wyjezdnik-shell-v6";
 const SHELL_PAGES = ["/", "/offline"];
 const STATIC_FILES = [
   "/manifest.webmanifest",

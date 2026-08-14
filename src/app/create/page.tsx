@@ -104,7 +104,7 @@ export default function TripCreator() {
   };
 
   return (
-    <div className="animate-fade-in flex min-h-dvh w-full flex-col items-center px-4 py-6 sm:justify-center">
+    <div className="animate-fade-in flex min-h-dvh w-full flex-col items-center px-4 pt-[calc(env(safe-area-inset-top)+1.5rem)] pb-[calc(env(safe-area-inset-bottom)+1.5rem)] sm:justify-center">
       <div className="flex w-full max-w-md flex-col gap-6">
         {submitError && (
           <div className="border-theme-danger/30 bg-theme-danger/10 text-theme-danger rounded-xl border px-4 py-3 text-center text-sm font-bold">

@@ -34,7 +34,7 @@ export default async function JoinTripPage({
   const returnLabel = session.userId ? "Wróć do wyjazdu" : "Wróć";
 
   return (
-    <div className="animate-fade-in relative flex min-h-dvh items-center justify-center px-4 py-8 pb-28">
+    <div className="animate-fade-in relative flex min-h-dvh items-center justify-center px-4 pt-[calc(env(safe-area-inset-top)+2rem)] pb-[calc(env(safe-area-inset-bottom)+7rem)]">
       <ParticipantPicker
         tripKey={tripKey}
         tripName={trip.name}
